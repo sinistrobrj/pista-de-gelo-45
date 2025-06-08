@@ -9,7 +9,285 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          categoria: Database["public"]["Enums"]["loyalty_category"] | null
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          pontos: number | null
+          telefone: string | null
+          total_gasto: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          categoria?: Database["public"]["Enums"]["loyalty_category"] | null
+          created_at?: string | null
+          email: string
+          id?: string
+          nome: string
+          pontos?: number | null
+          telefone?: string | null
+          total_gasto?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["loyalty_category"] | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          pontos?: number | null
+          telefone?: string | null
+          total_gasto?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      eventos: {
+        Row: {
+          capacidade: number
+          created_at: string | null
+          data: string
+          descricao: string | null
+          horario: string
+          id: string
+          ingressos_vendidos: number | null
+          nome: string
+          preco: number
+          status: Database["public"]["Enums"]["event_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          capacidade: number
+          created_at?: string | null
+          data: string
+          descricao?: string | null
+          horario: string
+          id?: string
+          ingressos_vendidos?: number | null
+          nome: string
+          preco: number
+          status?: Database["public"]["Enums"]["event_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          capacidade?: number
+          created_at?: string | null
+          data?: string
+          descricao?: string | null
+          horario?: string
+          id?: string
+          ingressos_vendidos?: number | null
+          nome?: string
+          preco?: number
+          status?: Database["public"]["Enums"]["event_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      itens_venda: {
+        Row: {
+          created_at: string | null
+          id: string
+          preco_unitario: number
+          produto_id: string
+          quantidade: number
+          subtotal: number
+          venda_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          preco_unitario: number
+          produto_id: string
+          quantidade: number
+          subtotal: number
+          venda_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          preco_unitario?: number
+          produto_id?: string
+          quantidade?: number
+          subtotal?: number
+          venda_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_venda_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itens_venda_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pista_controle: {
+        Row: {
+          created_at: string | null
+          entrada: string
+          id: string
+          momento_pausa: string | null
+          numero_cliente: number
+          pausado: boolean | null
+          saida_prevista: string
+          tempo_pausado: unknown | null
+          tempo_total: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entrada: string
+          id?: string
+          momento_pausa?: string | null
+          numero_cliente: number
+          pausado?: boolean | null
+          saida_prevista: string
+          tempo_pausado?: unknown | null
+          tempo_total: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entrada?: string
+          id?: string
+          momento_pausa?: string | null
+          numero_cliente?: number
+          pausado?: boolean | null
+          saida_prevista?: string
+          tempo_pausado?: unknown | null
+          tempo_total?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      produtos: {
+        Row: {
+          categoria: Database["public"]["Enums"]["product_category"]
+          created_at: string | null
+          descricao: string | null
+          estoque: number
+          id: string
+          nome: string
+          preco: number
+          updated_at: string | null
+        }
+        Insert: {
+          categoria: Database["public"]["Enums"]["product_category"]
+          created_at?: string | null
+          descricao?: string | null
+          estoque?: number
+          id?: string
+          nome: string
+          preco: number
+          updated_at?: string | null
+        }
+        Update: {
+          categoria?: Database["public"]["Enums"]["product_category"]
+          created_at?: string | null
+          descricao?: string | null
+          estoque?: number
+          id?: string
+          nome?: string
+          preco?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          permissoes: string[] | null
+          tipo: Database["public"]["Enums"]["user_role"]
+          ultimo_login: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email: string
+          id: string
+          nome: string
+          permissoes?: string[] | null
+          tipo?: Database["public"]["Enums"]["user_role"]
+          ultimo_login?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          permissoes?: string[] | null
+          tipo?: Database["public"]["Enums"]["user_role"]
+          ultimo_login?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      vendas: {
+        Row: {
+          cliente_id: string
+          created_at: string | null
+          data: string | null
+          desconto: number | null
+          id: string
+          total: number
+          total_final: number
+          usuario_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string | null
+          data?: string | null
+          desconto?: number | null
+          id?: string
+          total: number
+          total_final: number
+          usuario_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string | null
+          data?: string | null
+          desconto?: number | null
+          id?: string
+          total?: number
+          total_final?: number
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +296,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      event_status: "Programado" | "Em andamento" | "Finalizado" | "Cancelado"
+      loyalty_category: "Bronze" | "Prata" | "Ouro" | "Diamante"
+      product_category: "Ingresso" | "Ingresso evento" | "Produtos"
+      user_role: "Administrador" | "Funcionario"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +414,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      event_status: ["Programado", "Em andamento", "Finalizado", "Cancelado"],
+      loyalty_category: ["Bronze", "Prata", "Ouro", "Diamante"],
+      product_category: ["Ingresso", "Ingresso evento", "Produtos"],
+      user_role: ["Administrador", "Funcionario"],
+    },
   },
 } as const

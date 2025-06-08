@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, LogIn, UserPlus } from 'lucide-react'
+import { createDefaultAdmin } from '@/lib/supabase-utils'
+import { useNavigate } from 'react-router-dom'
 
 export function AuthPage() {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [adminCreated, setAdminCreated] = useState(false)
   
   const [loginData, setLoginData] = useState({
     email: '',
@@ -26,6 +30,29 @@ export function AuthPage() {
     confirmPassword: ''
   })
 
+  // Redirecionar se usuário já estiver logado
+  useEffect(() => {
+    if (user) {
+      console.log('Usuário logado, redirecionando...')
+      navigate('/')
+    }
+  }, [user, navigate])
+
+  // Criar administrador padrão na inicialização
+  useEffect(() => {
+    const initAdmin = async () => {
+      try {
+        const result = await createDefaultAdmin()
+        console.log('Resultado da criação do admin:', result)
+        setAdminCreated(true)
+      } catch (error) {
+        console.error('Erro ao criar admin:', error)
+      }
+    }
+    
+    initAdmin()
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!loginData.email || !loginData.password) {
@@ -38,19 +65,26 @@ export function AuthPage() {
     }
 
     setLoading(true)
+    console.log('Iniciando login...')
+    
     const { error } = await signIn(loginData.email, loginData.password)
     
     if (error) {
+      console.error('Erro no login:', error)
       toast({
         title: "Erro no login",
-        description: error.message,
+        description: error.message === 'Invalid login credentials' 
+          ? "Email ou senha incorretos" 
+          : error.message,
         variant: "destructive"
       })
     } else {
+      console.log('Login bem-sucedido')
       toast({
         title: "Sucesso",
         description: "Login realizado com sucesso!"
       })
+      // O redirecionamento será feito pelo useEffect que monitora o user
     }
     setLoading(false)
   }
@@ -88,7 +122,7 @@ export function AuthPage() {
     } else {
       toast({
         title: "Sucesso",
-        description: "Conta criada com sucesso!"
+        description: "Conta criada com sucesso! Verifique seu email para confirmar."
       })
     }
     setLoading(false)
@@ -148,9 +182,13 @@ export function AuthPage() {
                 </Button>
                 
                 <div className="text-sm text-center text-muted-foreground">
-                  <p>Usuário Administrador padrão:</p>
-                  <p><strong>Email:</strong> admin@icerink.com</p>
-                  <p><strong>Senha:</strong> 101010</p>
+                  {adminCreated && (
+                    <>
+                      <p>Usuário Administrador padrão:</p>
+                      <p><strong>Email:</strong> admin@icerink.com</p>
+                      <p><strong>Senha:</strong> 101010</p>
+                    </>
+                  )}
                 </div>
               </form>
             </TabsContent>

@@ -27,6 +27,8 @@ const queryClient = new QueryClient();
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
+  console.log('ProtectedRoute - User:', user?.email, 'Loading:', loading)
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -36,6 +38,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
+    console.log('Usuário não autenticado, redirecionando para /auth')
     return <Navigate to="/auth" replace />;
   }
 
@@ -45,6 +48,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading } = useAuth();
 
+  console.log('AppRoutes - User:', user?.email, 'Loading:', loading)
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -53,10 +58,12 @@ function AppRoutes() {
     );
   }
 
+  // Se não há usuário, mostrar página de auth
   if (!user) {
     return <AuthPage />;
   }
 
+  // Se há usuário, mostrar layout com rotas protegidas
   return (
     <Layout>
       <Routes>

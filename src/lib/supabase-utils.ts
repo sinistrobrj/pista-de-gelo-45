@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client'
 // Função para criar usuário administrador padrão
 export async function createDefaultAdmin() {
   try {
+    console.log('Verificando se admin já existe...')
+    
     // Verificar se já existe um usuário admin
     const { data: existingAdmin } = await supabase
       .from('profiles')
@@ -16,14 +18,18 @@ export async function createDefaultAdmin() {
       return { success: true, message: 'Administrador já existe' }
     }
 
+    console.log('Chamando edge function para criar admin...')
+
     // Chamar a edge function para criar o admin
     const { data, error } = await supabase.functions.invoke('create-admin')
 
     if (error) {
+      console.error('Erro na edge function:', error)
       throw error
     }
 
-    return { success: true, message: 'Administrador criado com sucesso' }
+    console.log('Resposta da edge function:', data)
+    return { success: true, message: 'Administrador criado com sucesso', data }
   } catch (error) {
     console.error('Erro ao criar administrador:', error)
     return { success: false, error }

@@ -30,38 +30,68 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     // Configurar listener de mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email)
+        
+        if (!mounted) return
+
         setSession(session)
         setUser(session?.user ?? null)
         
         if (session?.user) {
+          // Usar setTimeout para evitar problemas de recursão
           setTimeout(() => {
-            loadUserProfile(session.user.id)
-          }, 0)
+            if (mounted) {
+              loadUserProfile(session.user.id)
+            }
+          }, 100)
         } else {
           setProfile(null)
         }
+        
         setLoading(false)
       }
     )
 
     // Verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadUserProfile(session.user.id)
-      }
-      setLoading(false)
-    })
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Session check:', session?.user?.email)
+        
+        if (!mounted) return
 
-    return () => subscription.unsubscribe()
+        setSession(session)
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          await loadUserProfile(session.user.id)
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error)
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    checkSession()
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserProfile = async (userId: string) => {
     try {
+      console.log('Carregando perfil para usuário:', userId)
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -73,6 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return
       }
 
+      console.log('Perfil carregado:', data)
       setProfile(data)
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
@@ -80,27 +111,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      console.log('Tentando fazer login com:', email)
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      console.log('Resultado do login:', { data: data?.user?.email, error })
+      
+      if (error) {
+        console.error('Erro de login:', error)
+      }
+      
+      return { error }
+    } catch (error) {
+      console.error('Erro no signIn:', error)
+      return { error }
+    }
   }
 
   const signUp = async (email: string, password: string, nome: string) => {
-    const redirectUrl = `${window.location.origin}/`
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          nome
+    try {
+      const redirectUrl = `${window.location.origin}/`
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            nome
+          }
         }
-      }
-    })
-    return { error }
+      })
+      
+      console.log('Resultado do signup:', { data: data?.user?.email, error })
+      return { error }
+    } catch (error) {
+      console.error('Erro no signUp:', error)
+      return { error }
+    }
   }
 
   const signOut = async () => {
