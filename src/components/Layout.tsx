@@ -1,29 +1,66 @@
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "./AppSidebar"
-import { ReactNode } from "react"
+import { Button } from "@/components/ui/button"
+import { LogOut, User } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface LayoutProps {
-  children: ReactNode
+  children: React.ReactNode
 }
 
 export function Layout({ children }: LayoutProps) {
+  const { profile, signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+  }
+
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        <main className="flex-1 flex flex-col">
-          <header className="border-b border-border/50 p-4 bg-card">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="md:hidden" />
-              <div className="flex-1" />
-            </div>
-          </header>
-          <div className="flex-1 p-6">
-            {children}
-          </div>
-        </main>
-      </div>
+      <AppSidebar />
+      <main className="flex-1">
+        <header className="border-b px-6 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-semibold">Ice Rink Manager</h1>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <User className="w-4 h-4" />
+                {profile?.nome || 'Usuário'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <User className="w-4 h-4 mr-2" />
+                {profile?.nome}
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                Tipo: {profile?.tipo}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+        
+        <div className="flex-1">
+          {children}
+        </div>
+      </main>
     </SidebarProvider>
   )
 }
