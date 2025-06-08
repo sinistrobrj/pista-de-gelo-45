@@ -9,36 +9,18 @@ export async function createDefaultAdmin() {
       .from('profiles')
       .select('*')
       .eq('email', 'admin@icerink.com')
-      .single()
+      .maybeSingle()
 
     if (existingAdmin) {
       console.log('Usuário administrador já existe')
       return { success: true, message: 'Administrador já existe' }
     }
 
-    // Criar usuário administrador
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: 'admin@icerink.com',
-      password: '101010',
-      email_confirm: true,
-      user_metadata: {
-        nome: 'Administrador'
-      }
-    })
+    // Chamar a edge function para criar o admin
+    const { data, error } = await supabase.functions.invoke('create-admin')
 
     if (error) {
       throw error
-    }
-
-    // Atualizar perfil para administrador
-    if (data.user) {
-      await supabase
-        .from('profiles')
-        .update({
-          tipo: 'Administrador',
-          permissoes: ['todos']
-        })
-        .eq('id', data.user.id)
     }
 
     return { success: true, message: 'Administrador criado com sucesso' }
@@ -168,7 +150,7 @@ export async function createVenda(venda: any, itens: any[]) {
       .select()
       .single()
 
-    if (vendaError) throw vendaError
+    if (vendaError || !vendaData) throw vendaError
 
     // Criar itens da venda
     const itensComVendaId = itens.map(item => ({
@@ -184,15 +166,18 @@ export async function createVenda(venda: any, itens: any[]) {
 
     // Atualizar estoque
     for (const item of itens) {
-      await supabase
+      const { data: produto } = await supabase
         .from('produtos')
-        .update({
-          estoque: supabase.rpc('decrement_estoque', {
-            produto_id: item.produto_id,
-            quantidade: item.quantidade
-          })
-        })
+        .select('estoque')
         .eq('id', item.produto_id)
+        .single()
+
+      if (produto) {
+        await supabase
+          .from('produtos')
+          .update({ estoque: produto.estoque - item.quantidade })
+          .eq('id', item.produto_id)
+      }
     }
 
     return { data: vendaData, error: null }
