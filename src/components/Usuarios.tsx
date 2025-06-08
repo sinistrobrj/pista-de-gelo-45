@@ -4,9 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { User, Shield, Edit, Trash2, Settings } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { User, Shield, Edit, Trash2, Settings, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/useAuth"
+import { supabase } from "@/integrations/supabase/client"
+import { UserForm } from "./UserForm"
 
 interface Usuario {
   id: string
@@ -15,14 +18,16 @@ interface Usuario {
   tipo: "Administrador" | "Funcionario"
   permissoes: string[]
   ativo: boolean
-  ultimoLogin?: string
+  ultimo_login?: string
 }
 
 export function Usuarios() {
   const { toast } = useToast()
+  const { profile } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const permissoesDisponiveis = [
     "vendas",
@@ -37,36 +42,84 @@ export function Usuarios() {
     carregarUsuarios()
   }, [])
 
-  const carregarUsuarios = () => {
-    const usuariosSalvos = JSON.parse(localStorage.getItem('usuarios') || '[]')
-    setUsuarios(usuariosSalvos)
+  const carregarUsuarios = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('nome')
+
+      if (error) {
+        console.error('Erro ao carregar usuários:', error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar usuários",
+          variant: "destructive"
+        })
+        return
+      }
+
+      setUsuarios(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const salvarUsuarios = (novosUsuarios: Usuario[]) => {
-    localStorage.setItem('usuarios', JSON.stringify(novosUsuarios))
-    setUsuarios(novosUsuarios)
-  }
-
-  const alterarStatusUsuario = (id: string) => {
-    const novosUsuarios = usuarios.map(usuario => 
-      usuario.id === id ? { ...usuario, ativo: !usuario.ativo } : usuario
-    )
-    salvarUsuarios(novosUsuarios)
-    
+  const alterarStatusUsuario = async (id: string) => {
     const usuario = usuarios.find(u => u.id === id)
-    toast({
-      title: "Sucesso",
-      description: `Usuário ${usuario?.ativo ? 'desativado' : 'ativado'} com sucesso`,
-    })
+    if (!usuario) return
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ativo: !usuario.ativo })
+        .eq('id', id)
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao alterar status do usuário",
+          variant: "destructive"
+        })
+        return
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Usuário ${usuario.ativo ? 'desativado' : 'ativado'} com sucesso`,
+      })
+
+      carregarUsuarios()
+    } catch (error) {
+      console.error('Erro ao alterar status:', error)
+    }
   }
 
-  const excluirUsuario = (id: string) => {
-    const novosUsuarios = usuarios.filter(usuario => usuario.id !== id)
-    salvarUsuarios(novosUsuarios)
-    toast({
-      title: "Sucesso",
-      description: "Usuário excluído com sucesso",
-    })
+  const excluirUsuario = async (id: string) => {
+    try {
+      const { error } = await supabase.auth.admin.deleteUser(id)
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir usuário",
+          variant: "destructive"
+        })
+        return
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Usuário excluído com sucesso",
+      })
+
+      carregarUsuarios()
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error)
+    }
   }
 
   const abrirPermissoes = (usuario: Usuario) => {
@@ -87,20 +140,35 @@ export function Usuarios() {
     })
   }
 
-  const salvarPermissoes = () => {
+  const salvarPermissoes = async () => {
     if (!usuarioSelecionado) return
     
-    const novosUsuarios = usuarios.map(usuario => 
-      usuario.id === usuarioSelecionado.id ? usuarioSelecionado : usuario
-    )
-    salvarUsuarios(novosUsuarios)
-    setIsDialogOpen(false)
-    setUsuarioSelecionado(null)
-    
-    toast({
-      title: "Sucesso",
-      description: "Permissões atualizadas com sucesso",
-    })
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ permissoes: usuarioSelecionado.permissoes })
+        .eq('id', usuarioSelecionado.id)
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao atualizar permissões",
+          variant: "destructive"
+        })
+        return
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Permissões atualizadas com sucesso",
+      })
+
+      setIsDialogOpen(false)
+      setUsuarioSelecionado(null)
+      carregarUsuarios()
+    } catch (error) {
+      console.error('Erro ao salvar permissões:', error)
+    }
   }
 
   const estatisticas = {
@@ -109,6 +177,24 @@ export function Usuarios() {
     funcionarios: usuarios.filter(u => u.tipo === "Funcionario").length,
     ativos: usuarios.filter(u => u.ativo).length,
     inativos: usuarios.filter(u => !u.ativo).length
+  }
+
+  // Verificar se é administrador
+  if (profile?.tipo !== 'Administrador') {
+    return (
+      <div className="p-6 text-center">
+        <h1 className="text-2xl font-bold text-muted-foreground">Acesso Negado</h1>
+        <p className="text-muted-foreground mt-2">Você não tem permissão para acessar esta página.</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -180,7 +266,10 @@ export function Usuarios() {
       {/* Lista de Usuários */}
       <Card>
         <CardHeader>
-          <CardTitle>Usuários do Sistema</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Usuários do Sistema</CardTitle>
+            <UserForm onUserAdded={carregarUsuarios} />
+          </div>
         </CardHeader>
         <CardContent>
           {usuarios.length === 0 ? (
@@ -225,7 +314,7 @@ export function Usuarios() {
                       {usuario.tipo === "Administrador" ? (
                         <span className="text-sm text-muted-foreground">Todas</span>
                       ) : (
-                        <span className="text-sm">{usuario.permissoes.length} permissões</span>
+                        <span className="text-sm">{usuario.permissoes?.length || 0} permissões</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -234,8 +323,8 @@ export function Usuarios() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {usuario.ultimoLogin ? (
-                        new Date(usuario.ultimoLogin).toLocaleDateString('pt-BR')
+                      {usuario.ultimo_login ? (
+                        new Date(usuario.ultimo_login).toLocaleDateString('pt-BR')
                       ) : (
                         <span className="text-muted-foreground">Nunca</span>
                       )}
@@ -290,7 +379,7 @@ export function Usuarios() {
                   <input
                     type="checkbox"
                     id={permissao}
-                    checked={usuarioSelecionado?.permissoes.includes(permissao) || false}
+                    checked={usuarioSelecionado?.permissoes?.includes(permissao) || false}
                     onChange={() => alterarPermissao(permissao)}
                     className="rounded"
                   />

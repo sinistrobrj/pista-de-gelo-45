@@ -13,57 +13,69 @@ import {
 } from "@/components/ui/sidebar"
 import { Tickets, Users, ChartBar, Settings, Calendar, User, ShoppingCart, Package, Heart, UserPlus, Activity } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
+import { useAuth } from "@/hooks/useAuth"
+import { PermissionGuard } from "./PermissionGuard"
 
 const menuItems = [
   {
     title: "Dashboard",
     url: "/",
     icon: ChartBar,
+    permission: null
   },
   {
     title: "Ponto de Venda",
     url: "/ponto-venda",
     icon: ShoppingCart,
+    permission: "vendas"
   },
   {
     title: "Estoque",
     url: "/estoque",
     icon: Package,
+    permission: "estoque"
   },
   {
     title: "Gestão de Ingressos",
     url: "/tickets",
     icon: Tickets,
+    permission: "vendas"
   },
   {
     title: "Eventos",
     url: "/eventos",
     icon: Calendar,
+    permission: "eventos"
   },
   {
     title: "Pista",
     url: "/pista",
     icon: Activity,
+    permission: "pista"
   },
   {
     title: "Clientes",
     url: "/clientes",
     icon: Users,
+    permission: "clientes"
   },
   {
     title: "Fidelidade",
     url: "/fidelidade",
     icon: Heart,
+    permission: "clientes"
   },
   {
     title: "Cadastro",
     url: "/cadastro",
     icon: UserPlus,
+    permission: "clientes"
   },
   {
     title: "Relatórios",
     url: "/analytics",
     icon: ChartBar,
+    permission: "relatorios"
   },
 ]
 
@@ -72,16 +84,19 @@ const adminItems = [
     title: "Painel Admin",
     url: "/admin",
     icon: Settings,
+    requireAdmin: true
   },
   {
     title: "Usuários",
     url: "/users",
     icon: User,
+    requireAdmin: true
   },
 ]
 
 export function AppSidebar() {
   const location = useLocation()
+  const { profile } = useAuth()
 
   return (
     <Sidebar className="border-r border-border/50">
@@ -105,51 +120,63 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location.pathname === item.url}
-                    className="w-full justify-start"
-                  >
-                    <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <PermissionGuard
+                  key={item.title}
+                  requiredPermission={item.permission || undefined}
+                >
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={location.pathname === item.url}
+                      className="w-full justify-start"
+                    >
+                      <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </PermissionGuard>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            Administração
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={location.pathname === item.url}
-                    className="w-full justify-start"
-                  >
-                    <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <PermissionGuard requireAdmin>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+              Administração
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={location.pathname === item.url}
+                      className="w-full justify-start"
+                    >
+                      <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </PermissionGuard>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/50 p-4">
         <div className="text-xs text-muted-foreground text-center">
           Ice Rink Manager v1.0
+          {profile && (
+            <p className="mt-1 font-medium text-foreground">
+              {profile.nome} ({profile.tipo})
+            </p>
+          )}
         </div>
       </SidebarFooter>
     </Sidebar>
