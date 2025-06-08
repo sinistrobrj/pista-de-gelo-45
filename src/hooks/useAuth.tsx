@@ -92,26 +92,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Carregando perfil para usuário:', userId)
       
-      // Fazer uma consulta sem RLS para administradores
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       if (error) {
         console.error('Erro ao carregar perfil:', error)
-        
-        // Se der erro de RLS, tentar buscar com rpc para bypass
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_profile', { user_id: userId })
-        
-        if (rpcError) {
-          console.error('Erro no RPC:', rpcError)
-          return
-        }
-        
-        console.log('Perfil carregado via RPC:', rpcData)
-        setProfile(rpcData)
         return
       }
 
