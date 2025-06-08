@@ -11,7 +11,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar"
-import { Tickets, Users, ChartBar, Settings, Calendar, User } from "lucide-react"
+import { Tickets, Users, ChartBar, Settings, Calendar, User, ShoppingCart, Package, Heart, UserPlus, Activity } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 
 const menuItems = [
@@ -21,19 +21,44 @@ const menuItems = [
     icon: ChartBar,
   },
   {
+    title: "Ponto de Venda",
+    url: "/ponto-venda",
+    icon: ShoppingCart,
+  },
+  {
+    title: "Estoque",
+    url: "/estoque",
+    icon: Package,
+  },
+  {
     title: "Gestão de Ingressos",
     url: "/tickets",
     icon: Tickets,
   },
   {
     title: "Eventos",
-    url: "/events",
+    url: "/eventos",
     icon: Calendar,
   },
   {
+    title: "Pista",
+    url: "/pista",
+    icon: Activity,
+  },
+  {
     title: "Clientes",
-    url: "/customers",
+    url: "/clientes",
     icon: Users,
+  },
+  {
+    title: "Fidelidade",
+    url: "/fidelidade",
+    icon: Heart,
+  },
+  {
+    title: "Cadastro",
+    url: "/cadastro",
+    icon: UserPlus,
   },
   {
     title: "Relatórios",

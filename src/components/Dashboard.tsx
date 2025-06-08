@@ -1,120 +1,188 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tickets, Users, Calendar, ChartBar } from "lucide-react"
-
-const stats = [
-  {
-    title: "Ingressos Vendidos",
-    value: "2,847",
-    description: "+12% em relação ao mês passado",
-    icon: Tickets,
-    color: "bg-blue-500",
-  },
-  {
-    title: "Clientes Ativos",
-    value: "1,245",
-    description: "+5% novos clientes este mês",
-    icon: Users,
-    color: "bg-green-500",
-  },
-  {
-    title: "Eventos Agendados",
-    value: "28",
-    description: "Próximos 30 dias",
-    icon: Calendar,
-    color: "bg-purple-500",
-  },
-  {
-    title: "Receita Total",
-    value: "R$ 45.200",
-    description: "+18% crescimento mensal",
-    icon: ChartBar,
-    color: "bg-orange-500",
-  },
-]
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Overview } from "./Overview"
+import { RecentSales } from "./RecentSales"
+import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart } from "lucide-react"
 
 export function Dashboard() {
+  const [estatisticas, setEstatisticas] = useState({
+    totalVendas: 0,
+    clientesAtivos: 0,
+    produtosEstoque: 0,
+    eventosProgramados: 0,
+    faturamentoMes: 0,
+    clientesPista: 0
+  })
+
+  useEffect(() => {
+    carregarEstatisticas()
+  }, [])
+
+  const carregarEstatisticas = () => {
+    // Carregar dados reais do localStorage
+    const compras = JSON.parse(localStorage.getItem('compras') || '[]')
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]')
+    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]')
+    const eventos = JSON.parse(localStorage.getItem('eventos') || '[]')
+
+    const totalVendas = compras.length
+    const clientesAtivos = clientes.length
+    const produtosEstoque = estoque.reduce((total: number, produto: any) => total + produto.estoque, 0)
+    const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length
+    
+    // Calcular faturamento do mês atual
+    const mesAtual = new Date().getMonth()
+    const anoAtual = new Date().getFullYear()
+    const faturamentoMes = compras
+      .filter((compra: any) => {
+        const dataCompra = new Date(compra.data)
+        return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual
+      })
+      .reduce((total: number, compra: any) => total + compra.total, 0)
+
+    setEstatisticas({
+      totalVendas,
+      clientesAtivos,
+      produtosEstoque,
+      eventosProgramados,
+      faturamentoMes,
+      clientesPista: 0 // Será atualizado pelo componente da pista
+    })
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral do Ice Rink Manager</p>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Bem-vindo ao Ice Rink Manager
+        </p>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="relative overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className={`w-8 h-8 ${stat.color} rounded-lg flex items-center justify-center`}>
-                <stat.icon className="w-4 h-4 text-white" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Vendas Recentes</CardTitle>
-            <CardDescription>Últimas transações de ingressos</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Faturamento do Mês
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[
-                { cliente: "João Silva", evento: "Patinação Livre", valor: "R$ 25,00", tempo: "há 5 min" },
-                { cliente: "Maria Santos", evento: "Aula de Hockey", valor: "R$ 45,00", tempo: "há 12 min" },
-                { cliente: "Pedro Costa", evento: "Festa de Aniversário", valor: "R$ 120,00", tempo: "há 28 min" },
-              ].map((venda, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">{venda.cliente}</p>
-                    <p className="text-sm text-muted-foreground">{venda.evento}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-foreground">{venda.valor}</p>
-                    <p className="text-sm text-muted-foreground">{venda.tempo}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="text-2xl font-bold">R$ {estatisticas.faturamentoMes.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              +{estatisticas.totalVendas} vendas realizadas
+            </p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardHeader>
-            <CardTitle>Próximos Eventos</CardTitle>
-            <CardDescription>Agenda da semana</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[
-                { evento: "Campeonato de Hockey", data: "15 Jun", horario: "19:00", status: "Confirmado" },
-                { evento: "Aula para Iniciantes", data: "16 Jun", horario: "14:00", status: "Disponível" },
-                { evento: "Festa Infantil", data: "17 Jun", horario: "16:00", status: "Lotado" },
-              ].map((evento, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">{evento.evento}</p>
-                    <p className="text-sm text-muted-foreground">{evento.data} às {evento.horario}</p>
-                  </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    evento.status === 'Confirmado' ? 'bg-green-100 text-green-800' :
-                    evento.status === 'Disponível' ? 'bg-blue-100 text-blue-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {evento.status}
-                  </div>
-                </div>
-              ))}
+            <div className="text-2xl font-bold">+{estatisticas.clientesAtivos}</div>
+            <p className="text-xs text-muted-foreground">
+              Clientes cadastrados no sistema
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Produtos em Estoque</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{estatisticas.produtosEstoque}</div>
+            <p className="text-xs text-muted-foreground">
+              Itens disponíveis para venda
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Eventos Programados</CardTitle>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{estatisticas.eventosProgramados}</div>
+            <p className="text-xs text-muted-foreground">
+              Eventos aguardando realização
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Visão Geral</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <Overview />
+          </CardContent>
+        </Card>
+        <Card className="col-span-3">
+          <CardHeader>
+            <CardTitle>Vendas Recentes</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Últimas {estatisticas.totalVendas} vendas realizadas
+            </p>
+          </CardHeader>
+          <CardContent>
+            <RecentSales />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Vendas Hoje
+            </CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {estatisticas.totalVendas}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Transações realizadas hoje
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Taxa de Crescimento
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+12.5%</div>
+            <p className="text-xs text-muted-foreground">
+              Comparado ao mês anterior
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Clientes na Pista
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{estatisticas.clientesPista}</div>
+            <p className="text-xs text-muted-foreground">
+              Patinando no momento
+            </p>
           </CardContent>
         </Card>
       </div>
