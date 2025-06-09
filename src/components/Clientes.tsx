@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -5,14 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Users, Search, Heart, TrendingUp } from "lucide-react"
-import { ClienteForm } from "./ClienteForm"
 
 interface Cliente {
   id: string
   nome: string
   email: string
   telefone: string
-  cpf?: string
   categoria: "Bronze" | "Prata" | "Ouro" | "Diamante"
 }
 
@@ -41,8 +40,7 @@ export function Clientes() {
 
   const clientesFiltrados = clientes.filter(cliente =>
     cliente.nome.toLowerCase().includes(filtro.toLowerCase()) ||
-    cliente.email.toLowerCase().includes(filtro.toLowerCase()) ||
-    (cliente.cpf && cliente.cpf.includes(filtro))
+    cliente.email.toLowerCase().includes(filtro.toLowerCase())
   )
 
   const obterEstatisticasCliente = (clienteId: string) => {
@@ -183,7 +181,6 @@ export function Clientes() {
                   className="pl-10 w-64"
                 />
               </div>
-              <ClienteForm onClienteAdicionado={carregarDados} />
               <Button onClick={carregarDados}>
                 Atualizar
               </Button>
@@ -219,14 +216,9 @@ export function Clientes() {
                       <TableCell className="font-medium">{cliente.nome}</TableCell>
                       <TableCell>
                         <div>
-                          {cliente.email && (
-                            <p className="text-sm">{cliente.email}</p>
-                          )}
+                          <p className="text-sm">{cliente.email}</p>
                           {cliente.telefone && (
                             <p className="text-xs text-muted-foreground">{cliente.telefone}</p>
-                          )}
-                          {cliente.cpf && (
-                            <p className="text-xs text-muted-foreground">CPF: {cliente.cpf}</p>
                           )}
                         </div>
                       </TableCell>
