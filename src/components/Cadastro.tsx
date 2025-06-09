@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -107,11 +106,12 @@ export function Cadastro() {
       return
     }
 
-    // Verificar se é administrador tentando cadastrar funcionário/admin
-    if (profile?.tipo === "Funcionario" && formUsuario.tipo !== "Funcionario") {
+    // Verificar se é administrador
+    console.log('Perfil do usuário:', profile)
+    if (profile?.tipo !== "Administrador") {
       toast({
         title: "Erro",
-        description: "Funcionários só podem cadastrar clientes",
+        description: "Apenas administradores podem cadastrar usuários do sistema",
         variant: "destructive"
       })
       return
@@ -230,6 +230,9 @@ export function Cadastro() {
     }))
   }
 
+  // Verificar se pode acessar aba de usuários
+  const podeAcessarUsuarios = profile?.tipo === "Administrador"
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
@@ -240,7 +243,7 @@ export function Cadastro() {
       <Tabs defaultValue="clientes" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="usuarios" disabled={profile?.tipo !== "Administrador"}>
+          <TabsTrigger value="usuarios" disabled={!podeAcessarUsuarios}>
             Usuários do Sistema
           </TabsTrigger>
         </TabsList>
@@ -325,134 +328,149 @@ export function Cadastro() {
         </TabsContent>
 
         <TabsContent value="usuarios" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-primary" />
-                <CardTitle>Cadastrar Usuário do Sistema</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Nome Completo *</Label>
-                  <Input
-                    value={formUsuario.nome}
-                    onChange={(e) => setFormUsuario({ ...formUsuario, nome: e.target.value })}
-                    placeholder="Digite o nome completo"
-                  />
+          {!podeAcessarUsuarios ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-8">
+                  <Shield className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    Acesso restrito a administradores
+                  </p>
                 </div>
-                
-                <div>
-                  <Label>E-mail *</Label>
-                  <Input
-                    type="email"
-                    value={formUsuario.email}
-                    onChange={(e) => setFormUsuario({ ...formUsuario, email: e.target.value })}
-                    placeholder="usuario@email.com"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Tipo de Usuário *</Label>
-                <Select value={formUsuario.tipo} onValueChange={(value) => setFormUsuario({ ...formUsuario, tipo: value as any })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Funcionario">Funcionário</SelectItem>
-                    <SelectItem value="Administrador">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formUsuario.tipo === "Funcionario" && (
-                <div>
-                  <Label>Permissões</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {permissoesDisponiveis.map((permissao) => (
-                      <div key={permissao} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={permissao}
-                          checked={formUsuario.permissoes.includes(permissao)}
-                          onChange={() => togglePermissao(permissao)}
-                          className="rounded"
-                        />
-                        <label htmlFor={permissao} className="text-sm capitalize">
-                          {permissao}
-                        </label>
-                      </div>
-                    ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-6 h-6 text-primary" />
+                    <CardTitle>Cadastrar Usuário do Sistema</CardTitle>
                   </div>
-                </div>
-              )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Nome Completo *</Label>
+                      <Input
+                        value={formUsuario.nome}
+                        onChange={(e) => setFormUsuario({ ...formUsuario, nome: e.target.value })}
+                        placeholder="Digite o nome completo"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>E-mail *</Label>
+                      <Input
+                        type="email"
+                        value={formUsuario.email}
+                        onChange={(e) => setFormUsuario({ ...formUsuario, email: e.target.value })}
+                        placeholder="usuario@email.com"
+                      />
+                    </div>
+                  </div>
 
-              <Button onClick={cadastrarUsuario} className="w-full">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Cadastrar Usuário
-              </Button>
-            </CardContent>
-          </Card>
+                  <div>
+                    <Label>Tipo de Usuário *</Label>
+                    <Select value={formUsuario.tipo} onValueChange={(value) => setFormUsuario({ ...formUsuario, tipo: value as any })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Funcionario">Funcionário</SelectItem>
+                        <SelectItem value="Administrador">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Usuários do Sistema ({usuarios.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {usuarios.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                  Nenhum usuário cadastrado
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {usuarios.map((usuario) => (
-                    <div key={usuario.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {usuario.tipo === "Administrador" ? (
-                          <Shield className="w-5 h-5 text-red-500" />
-                        ) : (
-                          <User className="w-5 h-5 text-blue-500" />
-                        )}
-                        <div>
-                          <p className="font-medium">{usuario.nome}</p>
-                          <p className="text-sm text-muted-foreground">{usuario.email}</p>
-                          {usuario.senha_temporaria && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-blue-600">
-                                Senha: {mostrarSenha[usuario.id] ? usuario.senha_temporaria : '••••••••'}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleMostrarSenha(usuario.id)}
-                                className="h-4 w-4 p-0"
-                              >
-                                {mostrarSenha[usuario.id] ? (
-                                  <EyeOff className="w-3 h-3" />
-                                ) : (
-                                  <Eye className="w-3 h-3" />
-                                )}
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">{usuario.tipo}</p>
-                        {usuario.tipo === "Funcionario" && (
-                          <p className="text-xs text-muted-foreground">
-                            {usuario.permissoes?.length || 0} permissões
-                          </p>
-                        )}
+                  {formUsuario.tipo === "Funcionario" && (
+                    <div>
+                      <Label>Permissões</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {permissoesDisponiveis.map((permissao) => (
+                          <div key={permissao} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={permissao}
+                              checked={formUsuario.permissoes.includes(permissao)}
+                              onChange={() => togglePermissao(permissao)}
+                              className="rounded"
+                            />
+                            <label htmlFor={permissao} className="text-sm capitalize">
+                              {permissao}
+                            </label>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  )}
+
+                  <Button onClick={cadastrarUsuario} className="w-full">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Cadastrar Usuário
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Usuários do Sistema ({usuarios.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {usuarios.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">
+                      Nenhum usuário cadastrado
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {usuarios.map((usuario) => (
+                        <div key={usuario.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            {usuario.tipo === "Administrador" ? (
+                              <Shield className="w-5 h-5 text-red-500" />
+                            ) : (
+                              <User className="w-5 h-5 text-blue-500" />
+                            )}
+                            <div>
+                              <p className="font-medium">{usuario.nome}</p>
+                              <p className="text-sm text-muted-foreground">{usuario.email}</p>
+                              {usuario.senha_temporaria && (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-xs text-blue-600">
+                                    Senha: {mostrarSenha[usuario.id] ? usuario.senha_temporaria : '••••••••'}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleMostrarSenha(usuario.id)}
+                                    className="h-4 w-4 p-0"
+                                  >
+                                    {mostrarSenha[usuario.id] ? (
+                                      <EyeOff className="w-3 h-3" />
+                                    ) : (
+                                      <Eye className="w-3 h-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{usuario.tipo}</p>
+                            {usuario.tipo === "Funcionario" && (
+                              <p className="text-xs text-muted-foreground">
+                                {usuario.permissoes?.length || 0} permissões
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

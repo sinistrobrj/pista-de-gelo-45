@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, nome: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   loading: boolean
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -28,6 +29,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      console.log('Carregando perfil para usuário:', userId)
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Erro ao carregar perfil:', error)
+        return
+      }
+
+      console.log('Perfil carregado:', data)
+      setProfile(data)
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error)
+    }
+  }
+
+  const refreshProfile = async () => {
+    if (user) {
+      await loadUserProfile(user.id)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -88,28 +117,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [])
 
-  const loadUserProfile = async (userId: string) => {
-    try {
-      console.log('Carregando perfil para usuário:', userId)
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (error) {
-        console.error('Erro ao carregar perfil:', error)
-        return
-      }
-
-      console.log('Perfil carregado:', data)
-      setProfile(data)
-    } catch (error) {
-      console.error('Erro ao carregar perfil:', error)
-    }
-  }
-
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Tentando fazer login com:', email)
@@ -166,7 +173,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signUp,
     signOut,
-    loading
+    loading,
+    refreshProfile
   }
 
   return (

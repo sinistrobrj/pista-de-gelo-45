@@ -1,98 +1,75 @@
 
-import { useState, useEffect } from "react"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
-import { getVendas } from "@/lib/supabase-utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react"
 
 export function Overview() {
-  const [dadosGrafico, setDadosGrafico] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    carregarDadosGrafico()
-  }, [])
-
-  const carregarDadosGrafico = async () => {
-    try {
-      const { data, error } = await getVendas()
-      
-      if (error) {
-        console.error('Erro ao carregar vendas:', error)
-        setDadosGrafico([])
-        return
-      }
-
-      // Agrupar vendas por mês
-      const vendasPorMes: Record<string, number> = {}
-      
-      data.forEach((venda: any) => {
-        const data = new Date(venda.data || venda.created_at)
-        const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
-        vendasPorMes[chave] = (vendasPorMes[chave] || 0) + venda.total_final
-      })
-
-      // Criar dados para os últimos 12 meses
-      const meses = [
-        "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-        "Jul", "Ago", "Set", "Out", "Nov", "Dez"
-      ]
-
-      const dados = []
-      const dataAtual = new Date()
-      
-      for (let i = 11; i >= 0; i--) {
-        const data = new Date(dataAtual.getFullYear(), dataAtual.getMonth() - i, 1)
-        const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
-        
-        dados.push({
-          name: meses[data.getMonth()],
-          total: vendasPorMes[chave] || 0
-        })
-      }
-
-      setDadosGrafico(dados)
-    } catch (error) {
-      console.error('Erro ao carregar dados do gráfico:', error)
-      setDadosGrafico([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="h-[350px] flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando gráfico...</p>
-      </div>
-    )
+  // Dados limpos - mostrando zero até haver dados reais
+  const stats = {
+    totalVendas: 0,
+    totalClientes: 0,
+    totalProdutos: 0,
+    crescimento: 0
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={dadosGrafico}>
-        <XAxis
-          dataKey="name"
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `R$${value}`}
-        />
-        <Tooltip
-          formatter={(value) => [`R$ ${Number(value).toFixed(2)}`, "Faturamento"]}
-        />
-        <Bar
-          dataKey="total"
-          fill="currentColor"
-          radius={[4, 4, 0, 0]}
-          className="fill-primary"
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Receita Total
+          </CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">R$ {stats.totalVendas.toFixed(2)}</div>
+          <p className="text-xs text-muted-foreground">
+            +{stats.crescimento.toFixed(1)}% em relação ao mês passado
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Clientes
+          </CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.totalClientes}</div>
+          <p className="text-xs text-muted-foreground">
+            Clientes cadastrados
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Vendas</CardTitle>
+          <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats.totalProdutos}</div>
+          <p className="text-xs text-muted-foreground">
+            Vendas realizadas
+          </p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Crescimento
+          </CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">+{stats.crescimento.toFixed(1)}%</div>
+          <p className="text-xs text-muted-foreground">
+            Crescimento mensal
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
