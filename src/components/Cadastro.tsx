@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Users, Shield, User } from "lucide-react"
+import { UserPlus, Users, Shield, User, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/useAuth"
+import { createCliente, getClientes, createSystemUser, getUsuarios } from "@/lib/supabase-utils"
 
 interface Usuario {
   id: string
@@ -15,25 +17,23 @@ interface Usuario {
   email: string
   tipo: "Administrador" | "Funcionario"
   permissoes: string[]
+  senha_temporaria?: string
 }
 
 interface Cliente {
   id: string
   nome: string
-  email: string
+  cpf: string
   telefone: string
   categoria: "Bronze" | "Prata" | "Ouro" | "Diamante"
 }
 
-// Simulando usuário logado
-const usuarioLogado = {
-  tipo: "Administrador" // ou "Funcionario"
-}
-
 export function Cadastro() {
   const { toast } = useToast()
+  const { profile } = useAuth()
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [mostrarSenha, setMostrarSenha] = useState<{ [key: string]: boolean }>({})
   
   const [formUsuario, setFormUsuario] = useState({
     nome: "",
@@ -44,7 +44,7 @@ export function Cadastro() {
 
   const [formCliente, setFormCliente] = useState({
     nome: "",
-    email: "",
+    cpf: "",
     telefone: ""
   })
 
@@ -61,15 +61,43 @@ export function Cadastro() {
     carregarDados()
   }, [])
 
-  const carregarDados = () => {
-    const usuariosSalvos = JSON.parse(localStorage.getItem('usuarios') || '[]')
-    const clientesSalvos = JSON.parse(localStorage.getItem('clientes') || '[]')
-    
-    setUsuarios(usuariosSalvos)
-    setClientes(clientesSalvos)
+  const carregarDados = async () => {
+    try {
+      const [clientesData, usuariosData] = await Promise.all([
+        getClientes(),
+        getUsuarios()
+      ])
+      
+      if (clientesData.error) {
+        console.error('Erro ao carregar clientes:', clientesData.error)
+      } else {
+        setClientes(clientesData.data)
+      }
+
+      if (usuariosData.error) {
+        console.error('Erro ao carregar usuários:', usuariosData.error)
+      } else {
+        setUsuarios(usuariosData.data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+    }
   }
 
-  const cadastrarUsuario = () => {
+  const formatarCPF = (cpf: string) => {
+    const numeros = cpf.replace(/\D/g, '')
+    if (numeros.length <= 11) {
+      return numeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    }
+    return cpf
+  }
+
+  const validarCPF = (cpf: string) => {
+    const numeros = cpf.replace(/\D/g, '')
+    return numeros.length === 11
+  }
+
+  const cadastrarUsuario = async () => {
     if (!formUsuario.nome || !formUsuario.email || !formUsuario.tipo) {
       toast({
         title: "Erro",
@@ -80,7 +108,7 @@ export function Cadastro() {
     }
 
     // Verificar se é administrador tentando cadastrar funcionário/admin
-    if (usuarioLogado.tipo === "Funcionario" && formUsuario.tipo !== "Funcionario") {
+    if (profile?.tipo === "Funcionario" && formUsuario.tipo !== "Funcionario") {
       toast({
         title: "Erro",
         description: "Funcionários só podem cadastrar clientes",
@@ -89,33 +117,48 @@ export function Cadastro() {
       return
     }
 
-    const novoUsuario: Usuario = {
-      id: Date.now().toString(),
-      nome: formUsuario.nome,
-      email: formUsuario.email,
-      tipo: formUsuario.tipo,
-      permissoes: formUsuario.tipo === "Administrador" ? permissoesDisponiveis : formUsuario.permissoes
+    try {
+      const { data, error } = await createSystemUser({
+        nome: formUsuario.nome,
+        email: formUsuario.email,
+        tipo: formUsuario.tipo,
+        permissoes: formUsuario.tipo === "Administrador" ? permissoesDisponiveis : formUsuario.permissoes
+      })
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao cadastrar usuário: " + (error.message || 'Erro desconhecido'),
+          variant: "destructive"
+        })
+        return
+      }
+
+      await carregarDados()
+
+      setFormUsuario({
+        nome: "",
+        email: "",
+        tipo: "",
+        permissoes: []
+      })
+
+      toast({
+        title: "Sucesso",
+        description: `${formUsuario.tipo} cadastrado com sucesso! Senha temporária: ${data?.senha_temporaria}`,
+      })
+    } catch (error) {
+      console.error('Erro ao cadastrar usuário:', error)
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao cadastrar usuário",
+        variant: "destructive"
+      })
     }
-
-    const novosUsuarios = [...usuarios, novoUsuario]
-    localStorage.setItem('usuarios', JSON.stringify(novosUsuarios))
-    setUsuarios(novosUsuarios)
-
-    setFormUsuario({
-      nome: "",
-      email: "",
-      tipo: "",
-      permissoes: []
-    })
-
-    toast({
-      title: "Sucesso",
-      description: `${formUsuario.tipo} cadastrado com sucesso`,
-    })
   }
 
-  const cadastrarCliente = () => {
-    if (!formCliente.nome || !formCliente.email) {
+  const cadastrarCliente = async () => {
+    if (!formCliente.nome || !formCliente.cpf) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -124,28 +167,52 @@ export function Cadastro() {
       return
     }
 
-    const novoCliente: Cliente = {
-      id: Date.now().toString(),
-      nome: formCliente.nome,
-      email: formCliente.email,
-      telefone: formCliente.telefone,
-      categoria: "Bronze" // Categoria inicial
+    if (!validarCPF(formCliente.cpf)) {
+      toast({
+        title: "Erro",
+        description: "CPF deve ter 11 dígitos",
+        variant: "destructive"
+      })
+      return
     }
 
-    const novosClientes = [...clientes, novoCliente]
-    localStorage.setItem('clientes', JSON.stringify(novosClientes))
-    setClientes(novosClientes)
+    try {
+      const { error } = await createCliente({
+        nome: formCliente.nome,
+        cpf: formCliente.cpf.replace(/\D/g, ''),
+        telefone: formCliente.telefone,
+        categoria: "Bronze"
+      })
 
-    setFormCliente({
-      nome: "",
-      email: "",
-      telefone: ""
-    })
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao cadastrar cliente: " + (error.message || 'Erro desconhecido'),
+          variant: "destructive"
+        })
+        return
+      }
 
-    toast({
-      title: "Sucesso",
-      description: "Cliente cadastrado com sucesso",
-    })
+      await carregarDados()
+
+      setFormCliente({
+        nome: "",
+        cpf: "",
+        telefone: ""
+      })
+
+      toast({
+        title: "Sucesso",
+        description: "Cliente cadastrado com sucesso",
+      })
+    } catch (error) {
+      console.error('Erro ao cadastrar cliente:', error)
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao cadastrar cliente",
+        variant: "destructive"
+      })
+    }
   }
 
   const togglePermissao = (permissao: string) => {
@@ -154,6 +221,13 @@ export function Cadastro() {
       : [...formUsuario.permissoes, permissao]
     
     setFormUsuario({ ...formUsuario, permissoes })
+  }
+
+  const toggleMostrarSenha = (usuarioId: string) => {
+    setMostrarSenha(prev => ({
+      ...prev,
+      [usuarioId]: !prev[usuarioId]
+    }))
   }
 
   return (
@@ -166,7 +240,7 @@ export function Cadastro() {
       <Tabs defaultValue="clientes" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="usuarios" disabled={usuarioLogado.tipo !== "Administrador"}>
+          <TabsTrigger value="usuarios" disabled={profile?.tipo !== "Administrador"}>
             Usuários do Sistema
           </TabsTrigger>
         </TabsList>
@@ -191,12 +265,12 @@ export function Cadastro() {
                 </div>
                 
                 <div>
-                  <Label>E-mail *</Label>
+                  <Label>CPF *</Label>
                   <Input
-                    type="email"
-                    value={formCliente.email}
-                    onChange={(e) => setFormCliente({ ...formCliente, email: e.target.value })}
-                    placeholder="cliente@email.com"
+                    value={formCliente.cpf}
+                    onChange={(e) => setFormCliente({ ...formCliente, cpf: formatarCPF(e.target.value) })}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
                   />
                 </div>
               </div>
@@ -232,7 +306,7 @@ export function Cadastro() {
                     <div key={cliente.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{cliente.nome}</p>
-                        <p className="text-sm text-muted-foreground">{cliente.email}</p>
+                        <p className="text-sm text-muted-foreground">CPF: {formatarCPF(cliente.cpf)}</p>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {cliente.categoria}
@@ -344,13 +418,32 @@ export function Cadastro() {
                         <div>
                           <p className="font-medium">{usuario.nome}</p>
                           <p className="text-sm text-muted-foreground">{usuario.email}</p>
+                          {usuario.senha_temporaria && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-blue-600">
+                                Senha: {mostrarSenha[usuario.id] ? usuario.senha_temporaria : '••••••••'}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleMostrarSenha(usuario.id)}
+                                className="h-4 w-4 p-0"
+                              >
+                                {mostrarSenha[usuario.id] ? (
+                                  <EyeOff className="w-3 h-3" />
+                                ) : (
+                                  <Eye className="w-3 h-3" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">{usuario.tipo}</p>
                         {usuario.tipo === "Funcionario" && (
                           <p className="text-xs text-muted-foreground">
-                            {usuario.permissoes.length} permissões
+                            {usuario.permissoes?.length || 0} permissões
                           </p>
                         )}
                       </div>

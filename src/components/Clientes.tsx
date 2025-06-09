@@ -6,52 +6,82 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Users, Search, Heart, TrendingUp } from "lucide-react"
+import { getClientes, getVendas } from "@/lib/supabase-utils"
 
 interface Cliente {
   id: string
   nome: string
   email: string
+  cpf: string
   telefone: string
   categoria: "Bronze" | "Prata" | "Ouro" | "Diamante"
+  pontos: number
+  total_gasto: number
 }
 
-interface Compra {
-  clienteId: string
-  total: number
+interface Venda {
+  id: string
+  cliente_id: string
+  total_final: number
   data: string
 }
 
 export function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([])
-  const [compras, setCompras] = useState<Compra[]>([])
+  const [vendas, setVendas] = useState<Venda[]>([])
   const [filtro, setFiltro] = useState("")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     carregarDados()
   }, [])
 
-  const carregarDados = () => {
-    const clientesSalvos = JSON.parse(localStorage.getItem('clientes') || '[]')
-    const comprasSalvas = JSON.parse(localStorage.getItem('compras') || '[]')
-    
-    setClientes(clientesSalvos)
-    setCompras(comprasSalvas)
+  const carregarDados = async () => {
+    try {
+      setLoading(true)
+      const [clientesData, vendasData] = await Promise.all([
+        getClientes(),
+        getVendas()
+      ])
+      
+      if (clientesData.error) {
+        console.error('Erro ao carregar clientes:', clientesData.error)
+      } else {
+        setClientes(clientesData.data)
+      }
+
+      if (vendasData.error) {
+        console.error('Erro ao carregar vendas:', vendasData.error)
+      } else {
+        setVendas(vendasData.data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const clientesFiltrados = clientes.filter(cliente =>
     cliente.nome.toLowerCase().includes(filtro.toLowerCase()) ||
-    cliente.email.toLowerCase().includes(filtro.toLowerCase())
+    (cliente.email && cliente.email.toLowerCase().includes(filtro.toLowerCase())) ||
+    (cliente.cpf && cliente.cpf.includes(filtro))
   )
 
   const obterEstatisticasCliente = (clienteId: string) => {
-    const comprasCliente = compras.filter(compra => compra.clienteId === clienteId)
-    const totalGasto = comprasCliente.reduce((total, compra) => total + compra.total, 0)
-    const totalCompras = comprasCliente.length
-    const ultimaCompra = comprasCliente.length > 0 
-      ? new Date(Math.max(...comprasCliente.map(c => new Date(c.data).getTime())))
+    const vendasCliente = vendas.filter(venda => venda.cliente_id === clienteId)
+    const totalGasto = vendasCliente.reduce((total, venda) => total + venda.total_final, 0)
+    const totalCompras = vendasCliente.length
+    const ultimaCompra = vendasCliente.length > 0 
+      ? new Date(Math.max(...vendasCliente.map(v => new Date(v.data).getTime())))
       : null
 
     return { totalGasto, totalCompras, ultimaCompra }
+  }
+
+  const formatarCPF = (cpf: string) => {
+    if (!cpf) return ''
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
   }
 
   const getCategoriaColor = (categoria: string) => {
@@ -70,8 +100,22 @@ export function Clientes() {
     prata: clientes.filter(c => c.categoria === "Prata").length,
     ouro: clientes.filter(c => c.categoria === "Ouro").length,
     diamante: clientes.filter(c => c.categoria === "Diamante").length,
-    totalFaturamento: compras.reduce((total, compra) => total + compra.total, 0),
-    ticketMedio: compras.length > 0 ? compras.reduce((total, compra) => total + compra.total, 0) / compras.length : 0
+    totalFaturamento: vendas.reduce((total, venda) => total + venda.total_final, 0),
+    ticketMedio: vendas.length > 0 ? vendas.reduce((total, venda) => total + venda.total_final, 0) / vendas.length : 0
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Users className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Gestão de Clientes</h1>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Carregando dados...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -158,7 +202,7 @@ export function Clientes() {
                 <h3 className="font-bold">{categoria}</h3>
                 <p className="text-2xl font-bold">{count}</p>
                 <p className="text-sm text-muted-foreground">
-                  {((count / estatisticasGerais.totalClientes) * 100).toFixed(1)}%
+                  {estatisticasGerais.totalClientes > 0 ? ((count / estatisticasGerais.totalClientes) * 100).toFixed(1) : 0}%
                 </p>
               </div>
             ))}
@@ -200,6 +244,7 @@ export function Clientes() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>CPF</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Total Gasto</TableHead>
@@ -214,9 +259,10 @@ export function Clientes() {
                   return (
                     <TableRow key={cliente.id}>
                       <TableCell className="font-medium">{cliente.nome}</TableCell>
+                      <TableCell>{formatarCPF(cliente.cpf)}</TableCell>
                       <TableCell>
                         <div>
-                          <p className="text-sm">{cliente.email}</p>
+                          {cliente.email && <p className="text-sm">{cliente.email}</p>}
                           {cliente.telefone && (
                             <p className="text-xs text-muted-foreground">{cliente.telefone}</p>
                           )}
@@ -227,7 +273,7 @@ export function Clientes() {
                           {cliente.categoria}
                         </Badge>
                       </TableCell>
-                      <TableCell>R$ {stats.totalGasto.toFixed(2)}</TableCell>
+                      <TableCell>R$ {(cliente.total_gasto || 0).toFixed(2)}</TableCell>
                       <TableCell>{stats.totalCompras}</TableCell>
                       <TableCell>
                         {stats.ultimaCompra ? (

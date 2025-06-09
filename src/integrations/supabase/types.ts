@@ -12,8 +12,9 @@ export type Database = {
       clientes: {
         Row: {
           categoria: Database["public"]["Enums"]["loyalty_category"] | null
+          cpf: string | null
           created_at: string | null
-          email: string
+          email: string | null
           id: string
           nome: string
           pontos: number | null
@@ -23,8 +24,9 @@ export type Database = {
         }
         Insert: {
           categoria?: Database["public"]["Enums"]["loyalty_category"] | null
+          cpf?: string | null
           created_at?: string | null
-          email: string
+          email?: string | null
           id?: string
           nome: string
           pontos?: number | null
@@ -34,8 +36,9 @@ export type Database = {
         }
         Update: {
           categoria?: Database["public"]["Enums"]["loyalty_category"] | null
+          cpf?: string | null
           created_at?: string | null
-          email?: string
+          email?: string | null
           id?: string
           nome?: string
           pontos?: number | null
@@ -212,6 +215,7 @@ export type Database = {
           id: string
           nome: string
           permissoes: string[] | null
+          senha_temporaria: string | null
           tipo: Database["public"]["Enums"]["user_role"]
           ultimo_login: string | null
           updated_at: string | null
@@ -223,6 +227,7 @@ export type Database = {
           id: string
           nome: string
           permissoes?: string[] | null
+          senha_temporaria?: string | null
           tipo?: Database["public"]["Enums"]["user_role"]
           ultimo_login?: string | null
           updated_at?: string | null
@@ -234,8 +239,39 @@ export type Database = {
           id?: string
           nome?: string
           permissoes?: string[] | null
+          senha_temporaria?: string | null
           tipo?: Database["public"]["Enums"]["user_role"]
           ultimo_login?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      regras_fidelidade: {
+        Row: {
+          categoria: string
+          created_at: string | null
+          desconto_percentual: number
+          id: string
+          pontos_por_real: number | null
+          requisito_minimo: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          categoria: string
+          created_at?: string | null
+          desconto_percentual: number
+          id?: string
+          pontos_por_real?: number | null
+          requisito_minimo?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          categoria?: string
+          created_at?: string | null
+          desconto_percentual?: number
+          id?: string
+          pontos_por_real?: number | null
+          requisito_minimo?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -246,6 +282,7 @@ export type Database = {
           created_at: string | null
           data: string | null
           desconto: number | null
+          desconto_aplicado: number | null
           id: string
           total: number
           total_final: number
@@ -256,6 +293,7 @@ export type Database = {
           created_at?: string | null
           data?: string | null
           desconto?: number | null
+          desconto_aplicado?: number | null
           id?: string
           total: number
           total_final: number
@@ -266,6 +304,7 @@ export type Database = {
           created_at?: string | null
           data?: string | null
           desconto?: number | null
+          desconto_aplicado?: number | null
           id?: string
           total?: number
           total_final?: number
@@ -293,7 +332,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       event_status: "Programado" | "Em andamento" | "Finalizado" | "Cancelado"
