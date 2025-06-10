@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Users, Edit, Trash2, Package, Shield, User } from "lucide-react"
+import { UserPlus, Users, Edit, Shield, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
-import { getClientes, createCliente, updateCliente, getProdutos, createProduto, updateProduto, createSystemUser } from "@/lib/supabase-utils"
+import { getClientes, createCliente, updateCliente, createSystemUser } from "@/lib/supabase-utils"
 import { PhoneInput } from "./PhoneInput"
 
 interface Cliente {
@@ -22,15 +23,6 @@ interface Cliente {
   categoria: string
   pontos: number
   total_gasto: number
-}
-
-interface Produto {
-  id: string
-  nome: string
-  categoria: string
-  preco: number
-  estoque: number
-  descricao?: string
 }
 
 interface Usuario {
@@ -47,13 +39,10 @@ export function Cadastro() {
   const { toast } = useToast()
   const { profile } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
-  const [produtos, setProdutos] = useState<Produto[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [isClienteDialogOpen, setIsClienteDialogOpen] = useState(false)
-  const [isProdutoDialogOpen, setIsProdutoDialogOpen] = useState(false)
   const [isUsuarioDialogOpen, setIsUsuarioDialogOpen] = useState(false)
   const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null)
-  const [produtoEditando, setProdutoEditando] = useState<Produto | null>(null)
   const [loading, setLoading] = useState(false)
 
   const [clienteForm, setClienteForm] = useState({
@@ -61,14 +50,6 @@ export function Cadastro() {
     email: '',
     telefone: '',
     cpf: ''
-  })
-
-  const [produtoForm, setProdutoForm] = useState({
-    nome: '',
-    categoria: 'Produtos',
-    preco: '',
-    estoque: '',
-    descricao: ''
   })
 
   const [usuarioForm, setUsuarioForm] = useState({
@@ -93,17 +74,10 @@ export function Cadastro() {
 
   const carregarDados = async () => {
     try {
-      const [clientesResult, produtosResult] = await Promise.all([
-        getClientes(),
-        getProdutos()
-      ])
+      const clientesResult = await getClientes()
 
       if (!clientesResult.error) {
         setClientes(clientesResult.data)
-      }
-
-      if (!produtosResult.error) {
-        setProdutos(produtosResult.data)
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
@@ -178,63 +152,6 @@ export function Cadastro() {
     }
   }
 
-  const handleProdutoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!produtoForm.nome || !produtoForm.preco) {
-      toast({
-        title: "Erro",
-        description: "Nome e preço são obrigatórios",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      const dadosProduto = {
-        nome: produtoForm.nome,
-        categoria: produtoForm.categoria,
-        preco: parseFloat(produtoForm.preco),
-        estoque: parseInt(produtoForm.estoque) || 0,
-        descricao: produtoForm.descricao || null
-      }
-
-      if (produtoEditando) {
-        const { error } = await updateProduto(produtoEditando.id, dadosProduto)
-        if (error) throw error
-        
-        toast({
-          title: "Sucesso",
-          description: "Produto atualizado com sucesso!"
-        })
-      } else {
-        const { error } = await createProduto(dadosProduto)
-        if (error) throw error
-        
-        toast({
-          title: "Sucesso",
-          description: "Produto cadastrado com sucesso!"
-        })
-      }
-
-      setIsProdutoDialogOpen(false)
-      setProdutoEditando(null)
-      setProdutoForm({ nome: '', categoria: 'Produtos', preco: '', estoque: '', descricao: '' })
-      carregarDados()
-    } catch (error) {
-      console.error('Erro ao salvar produto:', error)
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar produto",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleUsuarioSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -285,18 +202,6 @@ export function Cadastro() {
     setIsClienteDialogOpen(true)
   }
 
-  const editarProduto = (produto: Produto) => {
-    setProdutoEditando(produto)
-    setProdutoForm({
-      nome: produto.nome,
-      categoria: produto.categoria,
-      preco: produto.preco.toString(),
-      estoque: produto.estoque.toString(),
-      descricao: produto.descricao || ''
-    })
-    setIsProdutoDialogOpen(true)
-  }
-
   const isAdmin = profile?.tipo === "Administrador"
 
   return (
@@ -311,10 +216,6 @@ export function Cadastro() {
           <TabsTrigger value="clientes">
             <Users className="w-4 h-4 mr-2" />
             Clientes
-          </TabsTrigger>
-          <TabsTrigger value="produtos">
-            <Package className="w-4 h-4 mr-2" />
-            Produtos
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="usuarios">
@@ -425,133 +326,6 @@ export function Cadastro() {
                             variant="ghost"
                             size="sm"
                             onClick={() => editarCliente(cliente)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="produtos">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Produtos</CardTitle>
-              <Dialog open={isProdutoDialogOpen} onOpenChange={setIsProdutoDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Package className="w-4 h-4 mr-2" />
-                    Novo Produto
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {produtoEditando ? 'Editar Produto' : 'Novo Produto'}
-                    </DialogTitle>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleProdutoSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="nome-produto">Nome *</Label>
-                      <Input
-                        id="nome-produto"
-                        value={produtoForm.nome}
-                        onChange={(e) => setProdutoForm({...produtoForm, nome: e.target.value})}
-                        placeholder="Nome do produto"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="categoria-produto">Categoria</Label>
-                      <Select value={produtoForm.categoria} onValueChange={(value) => setProdutoForm({...produtoForm, categoria: value})}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Ingresso">Ingresso</SelectItem>
-                          <SelectItem value="Ingresso evento">Ingresso Evento</SelectItem>
-                          <SelectItem value="Produtos">Produtos</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="preco-produto">Preço *</Label>
-                      <Input
-                        id="preco-produto"
-                        type="number"
-                        step="0.01"
-                        value={produtoForm.preco}
-                        onChange={(e) => setProdutoForm({...produtoForm, preco: e.target.value})}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="estoque-produto">Estoque</Label>
-                      <Input
-                        id="estoque-produto"
-                        type="number"
-                        value={produtoForm.estoque}
-                        onChange={(e) => setProdutoForm({...produtoForm, estoque: e.target.value})}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="descricao-produto">Descrição</Label>
-                      <Input
-                        id="descricao-produto"
-                        value={produtoForm.descricao}
-                        onChange={(e) => setProdutoForm({...produtoForm, descricao: e.target.value})}
-                        placeholder="Descrição do produto"
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Salvando..." : produtoEditando ? "Atualizar" : "Cadastrar"}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {produtos.length === 0 ? (
-                <div className="text-center py-8">
-                  <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhum produto cadastrado</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Preço</TableHead>
-                      <TableHead>Estoque</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtos.map((produto) => (
-                      <TableRow key={produto.id}>
-                        <TableCell className="font-medium">{produto.nome}</TableCell>
-                        <TableCell>{produto.categoria}</TableCell>
-                        <TableCell>R$ {produto.preco.toFixed(2)}</TableCell>
-                        <TableCell>{produto.estoque}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => editarProduto(produto)}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>

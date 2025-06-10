@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Package, Plus, Edit, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { getProdutos, createProduto, updateProduto, deleteProduto } from "@/lib/supabase-utils"
 
 interface Produto {
   id: string
@@ -24,6 +25,8 @@ export function Estoque() {
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editandoProduto, setEditandoProduto] = useState<Produto | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
   const [form, setForm] = useState({
     nome: "",
     categoria: "" as "Ingresso" | "Ingresso evento" | "Produtos" | "",
@@ -32,18 +35,38 @@ export function Estoque() {
     descricao: ""
   })
 
-  // Carregar produtos do localStorage
   useEffect(() => {
-    const produtosSalvos = localStorage.getItem('estoque')
-    if (produtosSalvos) {
-      setProdutos(JSON.parse(produtosSalvos))
-    }
+    carregarProdutos()
   }, [])
 
-  // Salvar produtos no localStorage
-  const salvarProdutos = (novosProdutos: Produto[]) => {
-    localStorage.setItem('estoque', JSON.stringify(novosProdutos))
-    setProdutos(novosProdutos)
+  const carregarProdutos = async () => {
+    console.log('Carregando produtos do estoque...')
+    setLoadingData(true)
+    try {
+      const result = await getProdutos()
+      console.log('Resultado produtos:', result)
+
+      if (result.error) {
+        console.error('Erro ao carregar produtos:', result.error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar produtos: " + result.error.message,
+          variant: "destructive"
+        })
+      } else {
+        console.log('Produtos carregados no estoque:', result.data)
+        setProdutos(result.data || [])
+      }
+    } catch (error) {
+      console.error('Erro geral ao carregar produtos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar produtos do sistema",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingData(false)
+    }
   }
 
   const resetForm = () => {
@@ -78,7 +101,7 @@ export function Estoque() {
     resetForm()
   }
 
-  const salvarProduto = () => {
+  const salvarProduto = async () => {
     if (!form.nome || !form.categoria || !form.preco || !form.estoque) {
       toast({
         title: "Erro",
@@ -88,42 +111,68 @@ export function Estoque() {
       return
     }
 
-    const novoProduto: Produto = {
-      id: editandoProduto?.id || Date.now().toString(),
-      nome: form.nome,
-      categoria: form.categoria as "Ingresso" | "Ingresso evento" | "Produtos",
-      preco: parseFloat(form.preco),
-      estoque: parseInt(form.estoque),
-      descricao: form.descricao
-    }
+    setLoading(true)
 
-    let novosProdutos: Produto[]
-    
-    if (editandoProduto) {
-      novosProdutos = produtos.map(p => p.id === editandoProduto.id ? novoProduto : p)
-      toast({
-        title: "Sucesso",
-        description: "Produto atualizado com sucesso",
-      })
-    } else {
-      novosProdutos = [...produtos, novoProduto]
-      toast({
-        title: "Sucesso",
-        description: "Produto cadastrado com sucesso",
-      })
-    }
+    try {
+      const dadosProduto = {
+        nome: form.nome,
+        categoria: form.categoria as "Ingresso" | "Ingresso evento" | "Produtos",
+        preco: parseFloat(form.preco),
+        estoque: parseInt(form.estoque),
+        descricao: form.descricao || null
+      }
 
-    salvarProdutos(novosProdutos)
-    fecharDialog()
+      if (editandoProduto) {
+        const { error } = await updateProduto(editandoProduto.id, dadosProduto)
+        if (error) throw error
+        
+        toast({
+          title: "Sucesso",
+          description: "Produto atualizado com sucesso!"
+        })
+      } else {
+        const { error } = await createProduto(dadosProduto)
+        if (error) throw error
+        
+        toast({
+          title: "Sucesso",
+          description: "Produto cadastrado com sucesso!"
+        })
+      }
+
+      fecharDialog()
+      carregarProdutos()
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar produto",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const excluirProduto = (id: string) => {
-    const novosProdutos = produtos.filter(p => p.id !== id)
-    salvarProdutos(novosProdutos)
-    toast({
-      title: "Sucesso",
-      description: "Produto excluído com sucesso",
-    })
+  const excluirProduto = async (id: string) => {
+    try {
+      const { error } = await deleteProduto(id)
+      if (error) throw error
+
+      toast({
+        title: "Sucesso",
+        description: "Produto excluído com sucesso!"
+      })
+      
+      carregarProdutos()
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir produto",
+        variant: "destructive"
+      })
+    }
   }
 
   const filtrarPorCategoria = (categoria: string) => {
@@ -133,6 +182,20 @@ export function Estoque() {
 
   const [filtroCategoria, setFiltroCategoria] = useState("Todos")
   const produtosFiltrados = filtrarPorCategoria(filtroCategoria)
+
+  if (loadingData) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Package className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Gestão de Estoque</h1>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Carregando dados do estoque...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -212,8 +275,8 @@ export function Estoque() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={salvarProduto} className="flex-1">
-                  {editandoProduto ? "Atualizar" : "Cadastrar"}
+                <Button onClick={salvarProduto} className="flex-1" disabled={loading}>
+                  {loading ? "Salvando..." : editandoProduto ? "Atualizar" : "Cadastrar"}
                 </Button>
                 <Button variant="outline" onClick={fecharDialog}>
                   Cancelar

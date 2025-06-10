@@ -34,14 +34,24 @@ export function AdminPanel() {
   }, [])
 
   const carregarEstatisticas = async () => {
-    // Aqui você pode carregar estatísticas reais do Supabase
-    // Por enquanto, vou usar valores padrão
-    setStats({
-      totalUsuarios: 0,
-      totalClientes: 0,
-      totalProdutos: 0,
-      totalVendas: 0
-    })
+    try {
+      // Carregar estatísticas reais do Supabase
+      const [profilesResult, clientesResult, produtosResult, vendasResult] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact' }),
+        supabase.from('clientes').select('id', { count: 'exact' }),
+        supabase.from('produtos').select('id', { count: 'exact' }),
+        supabase.from('vendas').select('id', { count: 'exact' })
+      ])
+
+      setStats({
+        totalUsuarios: profilesResult.count || 0,
+        totalClientes: clientesResult.count || 0,
+        totalProdutos: produtosResult.count || 0,
+        totalVendas: vendasResult.count || 0
+      })
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error)
+    }
   }
 
   const criarAdminPadrao = async () => {
@@ -83,6 +93,8 @@ export function AdminPanel() {
     setLoading(true)
 
     try {
+      console.log('Criando novo administrador:', formData)
+      
       // Criar usuário no auth
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: formData.email,
@@ -93,15 +105,19 @@ export function AdminPanel() {
         }
       })
 
+      console.log('Resultado auth.admin.createUser:', { authData, authError })
+
       if (authError) {
         throw authError
       }
 
       if (authData.user) {
-        // Inserir ou atualizar perfil
+        console.log('Usuário criado, inserindo perfil...')
+        
+        // Inserir perfil com permissões completas de administrador
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             id: authData.user.id,
             nome: formData.nome,
             email: formData.email,
@@ -110,37 +126,30 @@ export function AdminPanel() {
             ativo: true
           })
 
-        if (profileError) {
-          // Se der erro de duplicata, tentar atualizar
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              nome: formData.nome,
-              email: formData.email,
-              tipo: 'Administrador',
-              permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
-              ativo: true
-            })
-            .eq('id', authData.user.id)
+        console.log('Resultado insert profile:', { profileError })
 
-          if (updateError) {
-            throw updateError
-          }
+        if (profileError) {
+          throw profileError
         }
 
         toast({
           title: "Sucesso",
-          description: `Usuário administrador criado com sucesso! Email: ${formData.email}, Senha: ${formData.senha}`
+          description: `Administrador criado com sucesso! 
+          Email: ${formData.email}
+          Senha: ${formData.senha}
+          Tipo: Administrador com acesso total`,
+          duration: 10000
         })
 
         setIsDialogOpen(false)
         setFormData({ nome: '', email: '', senha: '101010' })
+        carregarEstatisticas()
       }
     } catch (error: any) {
-      console.error('Erro ao criar usuário:', error)
+      console.error('Erro ao criar administrador:', error)
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar usuário administrador",
+        description: error.message || "Erro ao criar administrador",
         variant: "destructive"
       })
     } finally {
@@ -171,6 +180,58 @@ export function AdminPanel() {
       toast({
         title: "Erro",
         description: "Erro ao limpar cache",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const corrigirPermissoesAdmin = async () => {
+    try {
+      // Buscar usuário admin@icerink.com
+      const { data: adminUser, error: fetchError } = await supabase.auth.admin.listUsers()
+      
+      if (fetchError) {
+        throw fetchError
+      }
+
+      const admin = adminUser.users.find(user => user.email === 'admin@icerink.com')
+      
+      if (!admin) {
+        toast({
+          title: "Erro",
+          description: "Usuário admin@icerink.com não encontrado",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Atualizar perfil do admin
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: admin.id,
+          nome: 'Administrador Principal',
+          email: 'admin@icerink.com',
+          tipo: 'Administrador',
+          permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+          ativo: true
+        })
+
+      if (updateError) {
+        throw updateError
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Permissões do admin@icerink.com corrigidas com sucesso!"
+      })
+
+      carregarEstatisticas()
+    } catch (error: any) {
+      console.error('Erro ao corrigir permissões:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao corrigir permissões",
         variant: "destructive"
       })
     }
@@ -330,6 +391,23 @@ export function AdminPanel() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
+              <Settings className="w-6 h-6 text-primary" />
+              <CardTitle>Corrigir Permissões</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Corrigir permissões do usuário admin@icerink.com
+            </p>
+            <Button onClick={corrigirPermissoesAdmin} className="w-full" variant="outline">
+              Corrigir Admin Principal
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
               <Database className="w-6 h-6 text-primary" />
               <CardTitle>Backup de Dados</CardTitle>
             </div>
@@ -374,6 +452,9 @@ export function AdminPanel() {
               <p className="text-sm text-muted-foreground">{profile?.nome}</p>
               <p className="text-sm text-muted-foreground">{profile?.email}</p>
               <p className="text-sm text-muted-foreground">Tipo: {profile?.tipo}</p>
+              <p className="text-sm text-muted-foreground">
+                Permissões: {profile?.permissoes?.join(', ') || 'Nenhuma'}
+              </p>
             </div>
             <div>
               <h4 className="font-medium mb-2">Sistema</h4>
