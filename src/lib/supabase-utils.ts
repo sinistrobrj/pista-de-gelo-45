@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client'
 
 // Função para criar usuário administrador padrão
@@ -133,6 +132,15 @@ export async function updateProduto(id: string, updates: any) {
     .single()
   
   return { data, error }
+}
+
+export async function deleteProduto(id: string) {
+  const { error } = await supabase
+    .from('produtos')
+    .delete()
+    .eq('id', id)
+  
+  return { error }
 }
 
 // Funções para eventos

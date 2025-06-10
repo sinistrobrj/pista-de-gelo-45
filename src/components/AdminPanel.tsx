@@ -188,13 +188,22 @@ export function AdminPanel() {
   const corrigirPermissoesAdmin = async () => {
     try {
       // Buscar usuário admin@icerink.com
-      const { data: adminUser, error: fetchError } = await supabase.auth.admin.listUsers()
+      const { data: adminUserData, error: fetchError } = await supabase.auth.admin.listUsers()
       
       if (fetchError) {
         throw fetchError
       }
 
-      const admin = adminUser.users.find(user => user.email === 'admin@icerink.com')
+      if (!adminUserData || !adminUserData.users) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível buscar usuários",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const admin = adminUserData.users.find(user => user.email === 'admin@icerink.com')
       
       if (!admin) {
         toast({
