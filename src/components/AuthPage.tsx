@@ -92,9 +92,7 @@ export function AuthPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-primary">Nome da sua Empresa Aqui</CardTitle>
-          <p className="text-muted-foreground">
-            Sistema de Gerenciamento de Pista de Gelo
-          </p>
+          <p className="text-muted-foreground">Sistema de Gerenciamento de Pista de Gelo (Beta)</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
