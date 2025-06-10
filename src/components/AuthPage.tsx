@@ -99,7 +99,8 @@ export function AuthPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email">Usuario:
+            </Label>
               <Input id="login-email" type="email" value={loginData.email} onChange={e => setLoginData({
               ...loginData,
               email: e.target.value
@@ -107,7 +108,7 @@ export function AuthPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="login-password">Senha</Label>
+              <Label htmlFor="login-password">Senha:</Label>
               <Input id="login-password" type="password" value={loginData.password} onChange={e => setLoginData({
               ...loginData,
               password: e.target.value
