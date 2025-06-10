@@ -41,34 +41,48 @@ export async function createSystemUser(userData: any) {
     // Gerar senha temporária
     const senhaTemporaria = Math.random().toString(36).slice(-8) + '123'
     
-    // Criar usuário no auth
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: userData.email,
-      password: senhaTemporaria,
-      email_confirm: true,
-      user_metadata: {
-        nome: userData.nome
+    // Chamar edge function para criar usuário
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: {
+        action: 'createUser',
+        email: userData.email,
+        password: senhaTemporaria,
+        nome: userData.nome,
+        tipo: userData.tipo,
+        permissoes: userData.permissoes || []
       }
     })
 
-    if (authError) throw authError
+    if (error) throw error
 
-    // Atualizar perfil com informações adicionais
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        nome: userData.nome,
-        tipo: userData.tipo,
-        permissoes: userData.permissoes || [],
-        senha_temporaria: senhaTemporaria
-      })
-      .eq('id', authData.user.id)
-
-    if (profileError) throw profileError
-
-    return { data: { ...authData.user, senha_temporaria: senhaTemporaria }, error: null }
+    return { 
+      data: { 
+        ...data.user, 
+        senha_temporaria: data.senha_temporaria 
+      }, 
+      error: null 
+    }
   } catch (error) {
+    console.error('Erro ao criar usuário:', error)
     return { data: null, error }
+  }
+}
+
+// Função para corrigir permissões do admin
+export async function fixAdminPermissions() {
+  try {
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: {
+        action: 'fixAdminPermissions'
+      }
+    })
+
+    if (error) throw error
+
+    return { success: true, message: data.message }
+  } catch (error) {
+    console.error('Erro ao corrigir permissões:', error)
+    return { success: false, error }
   }
 }
 

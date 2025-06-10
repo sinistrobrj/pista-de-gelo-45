@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Settings, Users, ShoppingBag, Calendar, BarChart3, Database, UserPlus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
-import { createDefaultAdmin } from "@/lib/supabase-utils"
+import { createDefaultAdmin, fixAdminPermissions } from "@/lib/supabase-utils"
 import { supabase } from "@/integrations/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
@@ -188,55 +187,21 @@ export function AdminPanel() {
 
   const corrigirPermissoesAdmin = async () => {
     try {
-      // Buscar usuário admin@icerink.com
-      const { data: adminUserData, error: fetchError } = await supabase.auth.admin.listUsers()
+      const result = await fixAdminPermissions()
       
-      if (fetchError) {
-        throw fetchError
-      }
-
-      if (!adminUserData || !adminUserData.users) {
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: result.message
+        })
+        carregarEstatisticas()
+      } else {
         toast({
           title: "Erro",
-          description: "Não foi possível buscar usuários",
+          description: result.error?.message || "Erro ao corrigir permissões",
           variant: "destructive"
         })
-        return
       }
-
-      const admin: User | undefined = adminUserData.users.find((user: User) => user.email === 'admin@icerink.com')
-      
-      if (!admin) {
-        toast({
-          title: "Erro",
-          description: "Usuário admin@icerink.com não encontrado",
-          variant: "destructive"
-        })
-        return
-      }
-
-      // Atualizar perfil do admin
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: admin.id,
-          nome: 'Administrador Principal',
-          email: 'admin@icerink.com',
-          tipo: 'Administrador',
-          permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
-          ativo: true
-        })
-
-      if (updateError) {
-        throw updateError
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Permissões do admin@icerink.com corrigidas com sucesso!"
-      })
-
-      carregarEstatisticas()
     } catch (error: any) {
       console.error('Erro ao corrigir permissões:', error)
       toast({
