@@ -1,10 +1,8 @@
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Overview } from "./Overview"
-import { RecentSales } from "./RecentSales"
-import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart } from "lucide-react"
-
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Overview } from "./Overview";
+import { RecentSales } from "./RecentSales";
+import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart } from "lucide-react";
 export function Dashboard() {
   const [estatisticas, setEstatisticas] = useState({
     totalVendas: 0,
@@ -13,34 +11,28 @@ export function Dashboard() {
     eventosProgramados: 0,
     faturamentoMes: 0,
     clientesPista: 0
-  })
-
+  });
   useEffect(() => {
-    carregarEstatisticas()
-  }, [])
-
+    carregarEstatisticas();
+  }, []);
   const carregarEstatisticas = () => {
     // Carregar dados reais do localStorage
-    const compras = JSON.parse(localStorage.getItem('compras') || '[]')
-    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]')
-    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]')
-    const eventos = JSON.parse(localStorage.getItem('eventos') || '[]')
+    const compras = JSON.parse(localStorage.getItem('compras') || '[]');
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]');
+    const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+    const totalVendas = compras.length;
+    const clientesAtivos = clientes.length;
+    const produtosEstoque = estoque.reduce((total: number, produto: any) => total + produto.estoque, 0);
+    const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length;
 
-    const totalVendas = compras.length
-    const clientesAtivos = clientes.length
-    const produtosEstoque = estoque.reduce((total: number, produto: any) => total + produto.estoque, 0)
-    const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length
-    
     // Calcular faturamento do mês atual
-    const mesAtual = new Date().getMonth()
-    const anoAtual = new Date().getFullYear()
-    const faturamentoMes = compras
-      .filter((compra: any) => {
-        const dataCompra = new Date(compra.data)
-        return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual
-      })
-      .reduce((total: number, compra: any) => total + compra.total, 0)
-
+    const mesAtual = new Date().getMonth();
+    const anoAtual = new Date().getFullYear();
+    const faturamentoMes = compras.filter((compra: any) => {
+      const dataCompra = new Date(compra.data);
+      return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual;
+    }).reduce((total: number, compra: any) => total + compra.total, 0);
     setEstatisticas({
       totalVendas,
       clientesAtivos,
@@ -48,16 +40,12 @@ export function Dashboard() {
       eventosProgramados,
       faturamentoMes,
       clientesPista: 0 // Será atualizado pelo componente da pista
-    })
-  }
-
-  return (
-    <div className="p-6 space-y-6">
+    });
+  };
+  return <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Bem-vindo ao Ice Rink Manager
-        </p>
+        <p className="text-muted-foreground">Bem-vindo ao [Nome da Sua empresa] Manager</p>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -186,6 +174,5 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  )
+    </div>;
 }
