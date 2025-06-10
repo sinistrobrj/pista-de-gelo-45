@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AuthPage } from "@/components/AuthPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
-import { TicketTypeManager } from "./components/TicketTypeManager";
 import { AdminPanel } from "./components/AdminPanel";
 import { CustomerAnalytics } from "./components/CustomerAnalytics";
 import { PontoVenda } from "./components/PontoVenda";
@@ -68,7 +67,6 @@ function AppRoutes() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/tickets" element={<TicketTypeManager />} />
         <Route path="/ponto-venda" element={<PontoVenda />} />
         <Route path="/estoque" element={<Estoque />} />
         <Route path="/fidelidade" element={<Fidelidade />} />

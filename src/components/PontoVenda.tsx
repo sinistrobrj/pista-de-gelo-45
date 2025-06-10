@@ -43,36 +43,57 @@ export function PontoVenda() {
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
   const [itensVenda, setItensVenda] = useState<ItemVenda[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
     carregarDados()
   }, [])
 
   const carregarDados = async () => {
+    console.log('Carregando dados do ponto de venda...')
+    setLoadingData(true)
+    
     try {
       const [produtosResult, clientesResult] = await Promise.all([
         getProdutos(),
         getClientes()
       ])
 
+      console.log('Resultado produtos:', produtosResult)
+      console.log('Resultado clientes:', clientesResult)
+
       if (produtosResult.error) {
         console.error('Erro ao carregar produtos:', produtosResult.error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar produtos: " + produtosResult.error.message,
+          variant: "destructive"
+        })
       } else {
-        setProdutos(produtosResult.data)
+        console.log('Produtos carregados:', produtosResult.data)
+        setProdutos(produtosResult.data || [])
       }
 
       if (clientesResult.error) {
         console.error('Erro ao carregar clientes:', clientesResult.error)
+        toast({
+          title: "Erro", 
+          description: "Erro ao carregar clientes: " + clientesResult.error.message,
+          variant: "destructive"
+        })
       } else {
-        setClientes(clientesResult.data)
+        console.log('Clientes carregados:', clientesResult.data)
+        setClientes(clientesResult.data || [])
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      console.error('Erro geral ao carregar dados:', error)
       toast({
         title: "Erro",
-        description: "Erro ao carregar dados",
+        description: "Erro ao carregar dados do sistema",
         variant: "destructive"
       })
+    } finally {
+      setLoadingData(false)
     }
   }
 
@@ -240,6 +261,20 @@ export function PontoVenda() {
   const total = calcularTotal()
   const desconto = calcularDesconto()
   const totalFinal = total - desconto
+
+  if (loadingData) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Ponto de Venda</h1>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Carregando dados...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">

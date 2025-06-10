@@ -2,10 +2,14 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Settings, Users, ShoppingBag, Calendar, BarChart3, Database } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Settings, Users, ShoppingBag, Calendar, BarChart3, Database, UserPlus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { createDefaultAdmin } from "@/lib/supabase-utils"
+import { supabase } from "@/integrations/supabase/client"
 
 export function AdminPanel() {
   const { toast } = useToast()
@@ -15,6 +19,14 @@ export function AdminPanel() {
     totalClientes: 0,
     totalProdutos: 0,
     totalVendas: 0
+  })
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  
+  const [formData, setFormData] = useState({
+    nome: '',
+    email: '',
+    senha: '101010'
   })
 
   useEffect(() => {
@@ -58,6 +70,84 @@ export function AdminPanel() {
     }
   }
 
+  const criarNovoAdmin = async () => {
+    if (!formData.nome || !formData.email) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Criar usuário no auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: formData.email,
+        password: formData.senha,
+        email_confirm: true,
+        user_metadata: {
+          nome: formData.nome
+        }
+      })
+
+      if (authError) {
+        throw authError
+      }
+
+      if (authData.user) {
+        // Inserir ou atualizar perfil
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            nome: formData.nome,
+            email: formData.email,
+            tipo: 'Administrador',
+            permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+            ativo: true
+          })
+
+        if (profileError) {
+          // Se der erro de duplicata, tentar atualizar
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              nome: formData.nome,
+              email: formData.email,
+              tipo: 'Administrador',
+              permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+              ativo: true
+            })
+            .eq('id', authData.user.id)
+
+          if (updateError) {
+            throw updateError
+          }
+        }
+
+        toast({
+          title: "Sucesso",
+          description: `Usuário administrador criado com sucesso! Email: ${formData.email}, Senha: ${formData.senha}`
+        })
+
+        setIsDialogOpen(false)
+        setFormData({ nome: '', email: '', senha: '101010' })
+      }
+    } catch (error: any) {
+      console.error('Erro ao criar usuário:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao criar usuário administrador",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const executarBackup = async () => {
     toast({
       title: "Backup",
@@ -86,19 +176,7 @@ export function AdminPanel() {
     }
   }
 
-  if (profile?.tipo !== "Administrador") {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <Settings className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-        </div>
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Acesso restrito a administradores</p>
-        </div>
-      </div>
-    )
-  }
+  console.log('Profile no AdminPanel:', profile)
 
   return (
     <div className="p-6 space-y-6">
@@ -182,6 +260,70 @@ export function AdminPanel() {
             <Button onClick={criarAdminPadrao} className="w-full">
               Criar Admin Padrão
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <UserPlus className="w-6 h-6 text-primary" />
+              <CardTitle>Novo Administrador</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Criar novo usuário com acesso total de administrador
+            </p>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full">
+                  Criar Novo Admin
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Administrador</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="nome">Nome *</Label>
+                    <Input
+                      id="nome"
+                      value={formData.nome}
+                      onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                      placeholder="Nome completo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="senha">Senha</Label>
+                    <Input
+                      id="senha"
+                      type="password"
+                      value={formData.senha}
+                      onChange={(e) => setFormData({...formData, senha: e.target.value})}
+                      placeholder="Senha padrão: 101010"
+                    />
+                  </div>
+                  <Button 
+                    onClick={criarNovoAdmin} 
+                    className="w-full"
+                    disabled={loading}
+                  >
+                    {loading ? "Criando..." : "Criar Administrador"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
 
