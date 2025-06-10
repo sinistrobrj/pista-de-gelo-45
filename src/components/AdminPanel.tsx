@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { createDefaultAdmin } from "@/lib/supabase-utils"
 import { supabase } from "@/integrations/supabase/client"
+import type { User } from "@supabase/supabase-js"
 
 export function AdminPanel() {
   const { toast } = useToast()
@@ -203,7 +204,7 @@ export function AdminPanel() {
         return
       }
 
-      const admin = adminUserData.users.find(user => user.email === 'admin@icerink.com')
+      const admin: User | undefined = adminUserData.users.find((user: User) => user.email === 'admin@icerink.com')
       
       if (!admin) {
         toast({
