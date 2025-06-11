@@ -61,36 +61,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true
 
-    // Configurar listener de mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email)
-        
-        if (!mounted) return
-
-        setSession(session)
-        setUser(session?.user ?? null)
-        
-        if (session?.user) {
-          // Usar setTimeout para evitar problemas de recursão
-          setTimeout(() => {
-            if (mounted) {
-              loadUserProfile(session.user.id)
-            }
-          }, 100)
-        } else {
-          setProfile(null)
-        }
-        
-        setLoading(false)
-      }
-    )
-
-    // Verificar sessão existente
-    const checkSession = async () => {
+    // Verificar sessão existente primeiro
+    const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('Session check:', session?.user?.email)
+        console.log('Sessão inicial:', session?.user?.email)
         
         if (!mounted) return
 
@@ -109,7 +84,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    checkSession()
+    // Configurar listener de mudanças de autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email)
+        
+        if (!mounted) return
+
+        setSession(session)
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          await loadUserProfile(session.user.id)
+        } else {
+          setProfile(null)
+        }
+      }
+    )
+
+    initializeAuth()
 
     return () => {
       mounted = false

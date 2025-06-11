@@ -22,6 +22,8 @@ interface CartSummaryProps {
   total: number
   totalComDesconto: number
   descontoAplicado: number
+  descontoFidelidade?: number
+  descontoFinal?: number
 }
 
 export function CartSummary({ 
@@ -31,7 +33,9 @@ export function CartSummary({
   onRemoveItem, 
   total, 
   totalComDesconto, 
-  descontoAplicado 
+  descontoAplicado,
+  descontoFidelidade = 0,
+  descontoFinal = 0
 }: CartSummaryProps) {
   return (
     <Card>
@@ -70,7 +74,7 @@ export function CartSummary({
 
             <div className="space-y-3 pt-3 border-t">
               <div>
-                <Label htmlFor="desconto">Desconto (%)</Label>
+                <Label htmlFor="desconto">Desconto Manual (%)</Label>
                 <Input
                   id="desconto"
                   type="number"
@@ -88,14 +92,31 @@ export function CartSummary({
                   <span>R$ {total.toFixed(2)}</span>
                 </div>
                 
+                {descontoFidelidade > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>Desconto Fidelidade ({descontoFidelidade}%):</span>
+                    <span>-R$ {(total * (descontoFidelidade / 100)).toFixed(2)}</span>
+                  </div>
+                )}
+
+                {descontoPercentual > 0 && (
+                  <div className="flex justify-between text-orange-600">
+                    <span>Desconto Manual ({descontoPercentual}%):</span>
+                    <span>-R$ {(total * (descontoPercentual / 100)).toFixed(2)}</span>
+                  </div>
+                )}
+                
                 {descontoAplicado > 0 && (
                   <>
-                    <div className="flex justify-between text-red-600">
-                      <span>Desconto ({descontoPercentual}%):</span>
+                    <div className="flex justify-between text-red-600 font-semibold">
+                      <span>Desconto Total ({descontoFinal}%):</span>
                       <span>-R$ {descontoAplicado.toFixed(2)}</span>
                     </div>
                     <Badge variant="destructive" className="w-full justify-center">
-                      Desconto de R$ {descontoAplicado.toFixed(2)} aplicado
+                      {descontoFidelidade > 0 && descontoPercentual > 0 
+                        ? `Descontos: ${descontoFidelidade}% (fidelidade) + ${descontoPercentual}% (manual) = ${descontoFinal}%`
+                        : `Desconto de ${descontoFinal}% aplicado`
+                      }
                     </Badge>
                   </>
                 )}

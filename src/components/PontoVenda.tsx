@@ -39,7 +39,7 @@ interface ItemCarrinho {
 
 export function PontoVenda() {
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [clienteSelecionado, setClienteSelecionado] = useState<string>("")
@@ -112,7 +112,7 @@ export function PontoVenda() {
   const calcularTotais = () => {
     const total = carrinho.reduce((acc, item) => acc + item.subtotal, 0)
     
-    // Aplicar desconto da categoria de fidelidade se houver cliente selecionado
+    // Obter desconto da categoria de fidelidade se houver cliente selecionado
     let descontoFidelidade = 0
     if (clienteSelecionado) {
       const cliente = clientes.find(c => c.id === clienteSelecionado)
@@ -124,19 +124,21 @@ export function PontoVenda() {
       }
     }
 
-    // Usar o maior desconto (manual ou fidelidade)
-    const descontoFinal = Math.max(descontoPercentual, descontoFidelidade)
+    // SOMAR os descontos (fidelidade + manual)
+    const descontoFinal = descontoFidelidade + descontoPercentual
     const descontoAplicado = total * (descontoFinal / 100)
     const totalComDesconto = total - descontoAplicado
 
-    return { total, descontoAplicado, totalComDesconto, descontoFinal }
+    return { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade }
   }
 
   const finalizarVenda = async () => {
-    if (!profile?.id) {
+    console.log('Verificando usuário:', { profile, user })
+    
+    if (!user?.id) {
       toast({
         title: "Erro",
-        description: "Usuário não identificado",
+        description: "Usuário não identificado. Faça login novamente.",
         variant: "destructive"
       })
       return
@@ -167,12 +169,14 @@ export function PontoVenda() {
 
       const venda = {
         cliente_id: clienteSelecionado,
-        usuario_id: profile.id,
+        usuario_id: user.id,
         total: total,
         desconto: descontoAplicado,
         total_final: totalComDesconto,
         data: new Date().toISOString()
       }
+
+      console.log('Criando venda com:', venda)
 
       const { error } = await createVenda(venda, carrinho)
 
@@ -204,7 +208,7 @@ export function PontoVenda() {
     }
   }
 
-  const { total, descontoAplicado, totalComDesconto, descontoFinal } = calcularTotais()
+  const { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade } = calcularTotais()
 
   return (
     <div className="p-6 space-y-6">
@@ -232,10 +236,21 @@ export function PontoVenda() {
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome} - {cliente.categoria}
+                      {(() => {
+                        const regra = regrasFidelidade.find(r => r.categoria === cliente.categoria)
+                        return regra ? ` (${regra.desconto_percentual}% desconto)` : ''
+                      })()}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              
+              {/* Mostrar desconto de fidelidade aplicado */}
+              {clienteSelecionado && descontoFidelidade > 0 && (
+                <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                  Desconto de fidelidade: {descontoFidelidade}%
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -265,6 +280,8 @@ export function PontoVenda() {
             total={total}
             totalComDesconto={totalComDesconto}
             descontoAplicado={descontoAplicado}
+            descontoFidelidade={descontoFidelidade}
+            descontoFinal={descontoFinal}
           />
 
           <Card>
