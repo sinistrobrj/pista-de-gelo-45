@@ -1,6 +1,8 @@
+
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
 import { Users, ChartBar, Settings, Calendar, User, ShoppingCart, Package, Heart, UserPlus, Activity } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+
 const menuItems = [{
   title: "Dashboard",
   url: "/",
@@ -38,15 +40,7 @@ const menuItems = [{
   url: "/analytics",
   icon: ChartBar
 }];
-const adminItems = [{
-  title: "Painel Admin",
-  url: "/admin",
-  icon: Settings
-}, {
-  title: "Usuários",
-  url: "/users",
-  icon: User
-}];
+
 export function AppSidebar() {
   const location = useLocation();
   return <Sidebar className="border-r border-border/50">
@@ -70,24 +64,6 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map(item => <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url} className="w-full justify-start">
-                    <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>)}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            Administração
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map(item => <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url} className="w-full justify-start">
                     <Link to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors">
                       <item.icon className="w-4 h-4" />

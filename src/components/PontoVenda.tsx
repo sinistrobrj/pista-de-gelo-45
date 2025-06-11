@@ -37,7 +37,7 @@ interface ItemVenda {
 
 export function PontoVenda() {
   const { toast } = useToast()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
@@ -203,7 +203,7 @@ export function PontoVenda() {
       return
     }
 
-    if (!profile?.id) {
+    if (!user?.id) {
       toast({
         title: "Erro",
         description: "Usuário não identificado",
@@ -221,7 +221,7 @@ export function PontoVenda() {
 
       const vendaData = {
         cliente_id: clienteSelecionado.id,
-        usuario_id: profile.id,
+        usuario_id: user.id,
         total,
         desconto,
         total_final: totalFinal,

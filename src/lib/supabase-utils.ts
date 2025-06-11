@@ -35,6 +35,24 @@ export async function createDefaultAdmin() {
   }
 }
 
+// Função para limpar todos os usuários exceto admin@icerink.com
+export async function cleanUsers() {
+  try {
+    const { data, error } = await supabase.functions.invoke('manage-users', {
+      body: {
+        action: 'cleanUsers'
+      }
+    })
+
+    if (error) throw error
+
+    return { success: true, message: data.message }
+  } catch (error) {
+    console.error('Erro ao limpar usuários:', error)
+    return { success: false, error }
+  }
+}
+
 // Função para criar usuário do sistema com senha temporária
 export async function createSystemUser(userData: any) {
   try {

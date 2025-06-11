@@ -1,9 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Overview } from "./Overview";
 import { RecentSales } from "./RecentSales";
-import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart } from "lucide-react";
+import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart, Settings } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { cleanUsers } from "@/lib/supabase-utils";
+
 export function Dashboard() {
+  const { toast } = useToast();
   const [estatisticas, setEstatisticas] = useState({
     totalVendas: 0,
     clientesAtivos: 0,
@@ -12,15 +18,18 @@ export function Dashboard() {
     faturamentoMes: 0,
     clientesPista: 0
   });
+
   useEffect(() => {
     carregarEstatisticas();
   }, []);
+
   const carregarEstatisticas = () => {
     // Carregar dados reais do localStorage
     const compras = JSON.parse(localStorage.getItem('compras') || '[]');
     const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
     const estoque = JSON.parse(localStorage.getItem('estoque') || '[]');
     const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+
     const totalVendas = compras.length;
     const clientesAtivos = clientes.length;
     const produtosEstoque = estoque.reduce((total: number, produto: any) => total + produto.estoque, 0);
@@ -33,6 +42,7 @@ export function Dashboard() {
       const dataCompra = new Date(compra.data);
       return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual;
     }).reduce((total: number, compra: any) => total + compra.total, 0);
+
     setEstatisticas({
       totalVendas,
       clientesAtivos,
@@ -42,6 +52,33 @@ export function Dashboard() {
       clientesPista: 0 // Será atualizado pelo componente da pista
     });
   };
+
+  const handleCleanUsers = async () => {
+    try {
+      const result = await cleanUsers();
+      
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: result.message
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: result.error?.message || "Erro ao limpar usuários",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('Erro ao limpar usuários:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao limpar usuários",
+        variant: "destructive"
+      });
+    }
+  };
+
   return <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -174,5 +211,25 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Painel de Administração Simplificado */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Settings className="w-6 h-6 text-primary" />
+            <CardTitle>Administração do Sistema</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Button onClick={handleCleanUsers} variant="destructive">
+              Limpar Todos os Usuários (Manter apenas Admin)
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Esta ação removerá todos os usuários do sistema, mantendo apenas o admin@icerink.com
+          </p>
+        </CardContent>
+      </Card>
     </div>;
 }

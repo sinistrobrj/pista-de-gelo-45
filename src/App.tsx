@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AuthPage } from "@/components/AuthPage";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./components/Dashboard";
-import { AdminPanel } from "./components/AdminPanel";
 import { CustomerAnalytics } from "./components/CustomerAnalytics";
 import { PontoVenda } from "./components/PontoVenda";
 import { Estoque } from "./components/Estoque";
@@ -16,7 +15,6 @@ import { Fidelidade } from "./components/Fidelidade";
 import { Cadastro } from "./components/Cadastro";
 import { Clientes } from "./components/Clientes";
 import { Eventos } from "./components/Eventos";
-import { Usuarios } from "./components/Usuarios";
 import { Pista } from "./components/Pista";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -75,8 +73,6 @@ function AppRoutes() {
         <Route path="/clientes" element={<Clientes />} />
         <Route path="/pista" element={<Pista />} />
         <Route path="/analytics" element={<CustomerAnalytics />} />
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/users" element={<Usuarios />} />
         <Route path="/auth" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

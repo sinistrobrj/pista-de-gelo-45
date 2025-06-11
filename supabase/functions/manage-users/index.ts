@@ -100,6 +100,57 @@ serve(async (req) => {
         )
       }
 
+      case 'cleanUsers': {
+        // Buscar todos os usuários
+        const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers()
+        
+        if (listError) throw listError
+
+        // Encontrar o admin principal
+        const admin = users.users.find(user => user.email === 'admin@icerink.com')
+        
+        if (!admin) {
+          throw new Error('Usuário admin@icerink.com não encontrado')
+        }
+
+        // Deletar todos os outros usuários
+        for (const user of users.users) {
+          if (user.email !== 'admin@icerink.com') {
+            console.log('Deletando usuário:', user.email)
+            await supabaseAdmin.auth.admin.deleteUser(user.id)
+          }
+        }
+
+        // Limpar profiles que não sejam do admin
+        const { error: deleteProfilesError } = await supabaseAdmin
+          .from('profiles')
+          .delete()
+          .neq('email', 'admin@icerink.com')
+
+        if (deleteProfilesError) throw deleteProfilesError
+
+        // Garantir que o perfil do admin está correto
+        const { error: updateError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            id: admin.id,
+            nome: 'Administrador Principal',
+            email: 'admin@icerink.com',
+            tipo: 'Administrador',
+            permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+            ativo: true
+          })
+
+        if (updateError) throw updateError
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Usuários limpos com sucesso. Apenas admin@icerink.com mantido.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
       default:
         throw new Error('Ação não reconhecida')
     }
