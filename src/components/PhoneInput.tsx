@@ -7,10 +7,11 @@ interface PhoneInputProps {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  id?: string
 }
 
 export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ value, onChange, placeholder = "(12) 34567-8900", className }, ref) => {
+  ({ value, onChange, placeholder = "(12) 34567-8900", className, id }, ref) => {
     const formatPhone = (input: string) => {
       // Remove tudo que não é número
       const numbers = input.replace(/\D/g, '')
@@ -36,6 +37,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     return (
       <Input
         ref={ref}
+        id={id}
         type="text"
         value={value}
         onChange={handleChange}

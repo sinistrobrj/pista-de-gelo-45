@@ -7,10 +7,11 @@ interface CpfInputProps {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  id?: string
 }
 
 export const CpfInput = forwardRef<HTMLInputElement, CpfInputProps>(
-  ({ value, onChange, placeholder = "000.000.000-00", className }, ref) => {
+  ({ value, onChange, placeholder = "000.000.000-00", className, id }, ref) => {
     const formatCpf = (cpf: string) => {
       // Remove tudo que não é dígito
       const numbers = cpf.replace(/\D/g, '')
@@ -30,6 +31,7 @@ export const CpfInput = forwardRef<HTMLInputElement, CpfInputProps>(
     return (
       <Input
         ref={ref}
+        id={id}
         value={value}
         onChange={handleChange}
         placeholder={placeholder}

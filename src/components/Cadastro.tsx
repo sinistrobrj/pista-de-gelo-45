@@ -457,7 +457,7 @@ export function Cadastro() {
                 </div>
                 <div>
                   <Label htmlFor="tipoUsuario">Tipo</Label>
-                  <Select value={tipoUsuario} onValueChange={setTipoUsuario}>
+                  <Select value={tipoUsuario} onValueChange={(value) => setTipoUsuario(value as 'Administrador' | 'Funcionario')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
@@ -606,7 +606,7 @@ export function Cadastro() {
                 </div>
                 <div>
                   <Label htmlFor="categoriaCliente">Categoria</Label>
-                  <Select value={categoriaCliente} onValueChange={setCategoriaCliente}>
+                  <Select value={categoriaCliente} onValueChange={(value) => setCategoriaCliente(value as 'Bronze' | 'Prata' | 'Ouro' | 'Diamante')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
@@ -693,7 +693,7 @@ export function Cadastro() {
                 </div>
                 <div>
                   <Label htmlFor="categoriaProduto">Categoria</Label>
-                  <Select value={categoriaProduto} onValueChange={setCategoriaProduto}>
+                  <Select value={categoriaProduto} onValueChange={(value) => setCategoriaProduto(value as 'Ingresso' | 'Ingresso evento' | 'Produtos')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
@@ -850,7 +850,7 @@ export function Cadastro() {
                 </div>
                 <div>
                   <Label htmlFor="statusEvento">Status</Label>
-                  <Select value={statusEvento} onValueChange={setStatusEvento}>
+                  <Select value={statusEvento} onValueChange={(value) => setStatusEvento(value as 'Programado' | 'Em andamento' | 'Finalizado' | 'Cancelado')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
                     </SelectTrigger>
