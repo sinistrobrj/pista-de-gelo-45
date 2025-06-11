@@ -6,7 +6,7 @@ import { Overview } from "./Overview";
 import { RecentSales } from "./RecentSales";
 import { CalendarDays, DollarSign, Package, Users, TrendingUp, ShoppingCart, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cleanUsers } from "@/lib/supabase-utils";
+import { cleanUsers, getProdutos, getEventos, getClientes, getVendas } from "@/lib/supabase-utils";
 
 export function Dashboard() {
   const { toast } = useToast();
@@ -23,34 +23,53 @@ export function Dashboard() {
     carregarEstatisticas();
   }, []);
 
-  const carregarEstatisticas = () => {
-    // Carregar dados reais do localStorage
-    const compras = JSON.parse(localStorage.getItem('compras') || '[]');
-    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
-    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]');
-    const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+  const carregarEstatisticas = async () => {
+    try {
+      const [produtosResult, eventosResult, clientesResult, vendasResult] = await Promise.all([
+        getProdutos(),
+        getEventos(),
+        getClientes(),
+        getVendas()
+      ]);
 
-    const totalVendas = compras.length;
-    const clientesAtivos = clientes.length;
-    const produtosEstoque = estoque.reduce((total: number, produto: any) => total + produto.estoque, 0);
-    const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length;
+      const produtos = produtosResult.data || [];
+      const eventos = eventosResult.data || [];
+      const clientes = clientesResult.data || [];
+      const vendas = vendasResult.data || [];
 
-    // Calcular faturamento do mês atual
-    const mesAtual = new Date().getMonth();
-    const anoAtual = new Date().getFullYear();
-    const faturamentoMes = compras.filter((compra: any) => {
-      const dataCompra = new Date(compra.data);
-      return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual;
-    }).reduce((total: number, compra: any) => total + compra.total, 0);
+      // Calcular produtos em estoque (produtos normais + ingressos de eventos disponíveis)
+      const produtosEstoque = produtos.reduce((total: number, produto: any) => total + produto.estoque, 0);
+      const ingressosEventosDisponiveis = eventos
+        .filter((evento: any) => evento.status === "Programado")
+        .reduce((total: number, evento: any) => total + (evento.capacidade - evento.ingressos_vendidos), 0);
+      
+      const totalEstoque = produtosEstoque + ingressosEventosDisponiveis;
 
-    setEstatisticas({
-      totalVendas,
-      clientesAtivos,
-      produtosEstoque,
-      eventosProgramados,
-      faturamentoMes,
-      clientesPista: 0 // Será atualizado pelo componente da pista
-    });
+      const clientesAtivos = clientes.length;
+      const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length;
+      const totalVendas = vendas.length;
+
+      // Calcular faturamento do mês atual
+      const mesAtual = new Date().getMonth();
+      const anoAtual = new Date().getFullYear();
+      const faturamentoMes = vendas
+        .filter((venda: any) => {
+          const dataVenda = new Date(venda.data);
+          return dataVenda.getMonth() === mesAtual && dataVenda.getFullYear() === anoAtual;
+        })
+        .reduce((total: number, venda: any) => total + (venda.total_final || 0), 0);
+
+      setEstatisticas({
+        totalVendas,
+        clientesAtivos,
+        produtosEstoque: totalEstoque,
+        eventosProgramados,
+        faturamentoMes,
+        clientesPista: 0 // Será atualizado pelo componente da pista
+      });
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
   };
 
   const handleCleanUsers = async () => {
@@ -82,7 +101,7 @@ export function Dashboard() {
   return <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Bem-vindo ao [Nome da Sua empresa] Manager</p>
+        <p className="text-muted-foreground">Bem-vindo ao Pista de Gelo Manager</p>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -116,13 +135,13 @@ export function Dashboard() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Produtos em Estoque</CardTitle>
+            <CardTitle className="text-sm font-medium">Itens em Estoque</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{estatisticas.produtosEstoque}</div>
             <p className="text-xs text-muted-foreground">
-              Itens disponíveis para venda
+              Produtos e ingressos disponíveis
             </p>
           </CardContent>
         </Card>

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client'
 
 // Função para criar usuário administrador padrão
@@ -226,6 +227,9 @@ export async function getVendas() {
 
 export async function createVenda(venda: any, itens: any[]) {
   try {
+    console.log('Criando venda:', venda)
+    console.log('Itens da venda:', itens)
+
     // Criar venda
     const { data: vendaData, error: vendaError } = await supabase
       .from('vendas')
@@ -233,21 +237,34 @@ export async function createVenda(venda: any, itens: any[]) {
       .select()
       .single()
 
-    if (vendaError || !vendaData) throw vendaError
+    if (vendaError || !vendaData) {
+      console.error('Erro ao criar venda:', vendaError)
+      throw vendaError
+    }
 
-    // Criar itens da venda
+    console.log('Venda criada:', vendaData)
+
+    // Criar itens da venda (apenas com os campos que existem na tabela)
     const itensComVendaId = itens.map(item => ({
-      ...item,
-      venda_id: vendaData.id
+      venda_id: vendaData.id,
+      produto_id: item.produto_id,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco_unitario,
+      subtotal: item.subtotal
     }))
+
+    console.log('Inserindo itens da venda:', itensComVendaId)
 
     const { error: itensError } = await supabase
       .from('itens_venda')
       .insert(itensComVendaId)
 
-    if (itensError) throw itensError
+    if (itensError) {
+      console.error('Erro ao inserir itens da venda:', itensError)
+      throw itensError
+    }
 
-    // Atualizar estoque e cliente
+    // Atualizar estoque dos produtos
     for (const item of itens) {
       const { data: produto } = await supabase
         .from('produtos')
@@ -283,8 +300,10 @@ export async function createVenda(venda: any, itens: any[]) {
       }
     }
 
+    console.log('Venda finalizada com sucesso')
     return { data: vendaData, error: null }
   } catch (error) {
+    console.error('Erro geral na criação da venda:', error)
     return { data: null, error }
   }
 }
@@ -358,4 +377,44 @@ export async function updateRegraFidelidade(id: string, updates: any) {
     .single()
   
   return { data, error }
+}
+
+// Função para obter todos os itens disponíveis para venda (produtos + eventos como ingressos)
+export async function getItensVenda() {
+  try {
+    const [produtosResult, eventosResult] = await Promise.all([
+      getProdutos(),
+      getEventos()
+    ])
+
+    const produtos = produtosResult.data || []
+    const eventos = eventosResult.data || []
+
+    // Converter eventos em "produtos" de ingresso
+    const ingressosEventos = eventos
+      .filter(evento => evento.status === 'Programado' && evento.ingressos_vendidos < evento.capacidade)
+      .map(evento => ({
+        id: `evento_${evento.id}`,
+        nome: `Ingresso - ${evento.nome}`,
+        categoria: 'Evento',
+        preco: evento.preco,
+        estoque: evento.capacidade - evento.ingressos_vendidos,
+        descricao: `${evento.descricao} - ${new Date(evento.data).toLocaleDateString()} às ${evento.horario}`,
+        tipo: 'evento',
+        evento_id: evento.id
+      }))
+
+    // Adicionar tipo aos produtos normais
+    const produtosComTipo = produtos.map(produto => ({
+      ...produto,
+      tipo: 'produto'
+    }))
+
+    const todosItens = [...produtosComTipo, ...ingressosEventos]
+
+    return { data: todosItens, error: null }
+  } catch (error) {
+    console.error('Erro ao buscar itens para venda:', error)
+    return { data: [], error }
+  }
 }

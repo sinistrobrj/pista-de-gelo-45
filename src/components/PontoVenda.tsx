@@ -5,18 +5,21 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ShoppingCart, Plus, Minus, Trash2, User } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ShoppingCart, User, Percent, Tag } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
-import { getProdutos, getClientes, createVenda } from "@/lib/supabase-utils"
+import { getItensVenda, getClientes, createVenda } from "@/lib/supabase-utils"
 
-interface Produto {
+interface ItemVenda {
   id: string
   nome: string
   categoria: string
   preco: number
   estoque: number
+  descricao?: string
+  tipo: 'produto' | 'evento'
+  evento_id?: string
 }
 
 interface Cliente {
@@ -27,21 +30,25 @@ interface Cliente {
   pontos: number
 }
 
-interface ItemVenda {
+interface ItemCarrinho {
   produto_id: string
   nome: string
   quantidade: number
   preco_unitario: number
   subtotal: number
+  tipo: 'produto' | 'evento'
+  evento_id?: string
 }
 
 export function PontoVenda() {
   const { toast } = useToast()
   const { user } = useAuth()
-  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [itensDisponiveis, setItensDisponiveis] = useState<ItemVenda[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null)
-  const [itensVenda, setItensVenda] = useState<ItemVenda[]>([])
+  const [itemSelecionado, setItemSelecionado] = useState<ItemVenda | null>(null)
+  const [itensCarrinho, setItensCarrinho] = useState<ItemCarrinho[]>([])
+  const [descontoManual, setDescontoManual] = useState<number>(0)
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
 
@@ -54,24 +61,24 @@ export function PontoVenda() {
     setLoadingData(true)
     
     try {
-      const [produtosResult, clientesResult] = await Promise.all([
-        getProdutos(),
+      const [itensResult, clientesResult] = await Promise.all([
+        getItensVenda(),
         getClientes()
       ])
 
-      console.log('Resultado produtos:', produtosResult)
+      console.log('Resultado itens:', itensResult)
       console.log('Resultado clientes:', clientesResult)
 
-      if (produtosResult.error) {
-        console.error('Erro ao carregar produtos:', produtosResult.error)
+      if (itensResult.error) {
+        console.error('Erro ao carregar itens:', itensResult.error)
         toast({
           title: "Erro",
-          description: "Erro ao carregar produtos: " + produtosResult.error.message,
+          description: "Erro ao carregar itens: " + itensResult.error.message,
           variant: "destructive"
         })
       } else {
-        console.log('Produtos carregados:', produtosResult.data)
-        setProdutos(produtosResult.data || [])
+        console.log('Itens carregados:', itensResult.data)
+        setItensDisponiveis(itensResult.data || [])
       }
 
       if (clientesResult.error) {
@@ -97,20 +104,29 @@ export function PontoVenda() {
     }
   }
 
-  const adicionarItem = (produto: Produto) => {
-    if (produto.estoque <= 0) {
+  const adicionarAoCarrinho = () => {
+    if (!itemSelecionado) {
       toast({
-        title: "Estoque insuficiente",
-        description: "Este produto não está disponível no estoque",
+        title: "Erro",
+        description: "Selecione um item para adicionar",
         variant: "destructive"
       })
       return
     }
 
-    const itemExistente = itensVenda.find(item => item.produto_id === produto.id)
+    if (itemSelecionado.estoque <= 0) {
+      toast({
+        title: "Estoque insuficiente",
+        description: "Este item não está disponível no estoque",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const itemExistente = itensCarrinho.find(item => item.produto_id === itemSelecionado.id)
     
     if (itemExistente) {
-      if (itemExistente.quantidade >= produto.estoque) {
+      if (itemExistente.quantidade >= itemSelecionado.estoque) {
         toast({
           title: "Estoque insuficiente",
           description: "Quantidade solicitada excede o estoque disponível",
@@ -119,32 +135,34 @@ export function PontoVenda() {
         return
       }
       
-      setItensVenda(itens => 
+      setItensCarrinho(itens => 
         itens.map(item => 
-          item.produto_id === produto.id 
+          item.produto_id === itemSelecionado.id 
             ? { ...item, quantidade: item.quantidade + 1, subtotal: (item.quantidade + 1) * item.preco_unitario }
             : item
         )
       )
     } else {
-      setItensVenda(itens => [...itens, {
-        produto_id: produto.id,
-        nome: produto.nome,
+      setItensCarrinho(itens => [...itens, {
+        produto_id: itemSelecionado.id,
+        nome: itemSelecionado.nome,
         quantidade: 1,
-        preco_unitario: produto.preco,
-        subtotal: produto.preco
+        preco_unitario: itemSelecionado.preco,
+        subtotal: itemSelecionado.preco,
+        tipo: itemSelecionado.tipo,
+        evento_id: itemSelecionado.evento_id
       }])
     }
   }
 
   const alterarQuantidade = (produtoId: string, novaQuantidade: number) => {
     if (novaQuantidade <= 0) {
-      setItensVenda(itens => itens.filter(item => item.produto_id !== produtoId))
+      setItensCarrinho(itens => itens.filter(item => item.produto_id !== produtoId))
       return
     }
 
-    const produto = produtos.find(p => p.id === produtoId)
-    if (produto && novaQuantidade > produto.estoque) {
+    const item = itensDisponiveis.find(p => p.id === produtoId)
+    if (item && novaQuantidade > item.estoque) {
       toast({
         title: "Estoque insuficiente",
         description: "Quantidade solicitada excede o estoque disponível",
@@ -153,7 +171,7 @@ export function PontoVenda() {
       return
     }
 
-    setItensVenda(itens => 
+    setItensCarrinho(itens => 
       itens.map(item => 
         item.produto_id === produtoId 
           ? { ...item, quantidade: novaQuantidade, subtotal: novaQuantidade * item.preco_unitario }
@@ -163,29 +181,35 @@ export function PontoVenda() {
   }
 
   const removerItem = (produtoId: string) => {
-    setItensVenda(itens => itens.filter(item => item.produto_id !== produtoId))
+    setItensCarrinho(itens => itens.filter(item => item.produto_id !== produtoId))
   }
 
-  const calcularTotal = () => {
-    return itensVenda.reduce((total, item) => total + item.subtotal, 0)
+  const calcularSubtotal = () => {
+    return itensCarrinho.reduce((total, item) => total + item.subtotal, 0)
   }
 
-  const calcularDesconto = () => {
+  const calcularDescontoFidelidade = () => {
     if (!clienteSelecionado) return 0
     
-    const total = calcularTotal()
+    const subtotal = calcularSubtotal()
     const categoria = clienteSelecionado.categoria
 
     switch (categoria) {
-      case 'Prata': return total * 0.05
-      case 'Ouro': return total * 0.10
-      case 'Diamante': return total * 0.15
+      case 'Prata': return subtotal * 0.05
+      case 'Ouro': return subtotal * 0.10
+      case 'Diamante': return subtotal * 0.15
       default: return 0
     }
   }
 
+  const calcularTotal = () => {
+    const subtotal = calcularSubtotal()
+    const descontoFidelidade = calcularDescontoFidelidade()
+    return subtotal - descontoFidelidade - descontoManual
+  }
+
   const finalizarVenda = async () => {
-    if (itensVenda.length === 0) {
+    if (itensCarrinho.length === 0) {
       toast({
         title: "Erro",
         description: "Adicione pelo menos um item à venda",
@@ -215,20 +239,29 @@ export function PontoVenda() {
     setLoading(true)
 
     try {
-      const total = calcularTotal()
-      const desconto = calcularDesconto()
-      const totalFinal = total - desconto
+      const subtotal = calcularSubtotal()
+      const descontoFidelidade = calcularDescontoFidelidade()
+      const descontoTotal = descontoFidelidade + descontoManual
+      const totalFinal = subtotal - descontoTotal
 
       const vendaData = {
         cliente_id: clienteSelecionado.id,
         usuario_id: user.id,
-        total,
-        desconto,
+        total: subtotal,
+        desconto: descontoTotal,
         total_final: totalFinal,
         data: new Date().toISOString()
       }
 
-      const { error } = await createVenda(vendaData, itensVenda)
+      // Preparar itens para inserção (removendo campos que não existem na tabela)
+      const itensParaVenda = itensCarrinho.map(item => ({
+        produto_id: item.produto_id.startsWith('evento_') ? item.produto_id.replace('evento_', '') : item.produto_id,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        subtotal: item.subtotal
+      }))
+
+      const { error } = await createVenda(vendaData, itensParaVenda)
 
       if (error) {
         throw error
@@ -240,10 +273,12 @@ export function PontoVenda() {
       })
 
       // Limpar formulário
-      setItensVenda([])
+      setItensCarrinho([])
       setClienteSelecionado(null)
+      setItemSelecionado(null)
+      setDescontoManual(0)
       
-      // Recarregar produtos para atualizar estoque
+      // Recarregar dados para atualizar estoque
       carregarDados()
 
     } catch (error) {
@@ -258,9 +293,10 @@ export function PontoVenda() {
     }
   }
 
+  const subtotal = calcularSubtotal()
+  const descontoFidelidade = calcularDescontoFidelidade()
+  const descontoTotal = descontoFidelidade + descontoManual
   const total = calcularTotal()
-  const desconto = calcularDesconto()
-  const totalFinal = total - desconto
 
   if (loadingData) {
     return (
@@ -283,47 +319,15 @@ export function PontoVenda() {
         <h1 className="text-3xl font-bold">Ponto de Venda</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lista de Produtos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Produtos Disponíveis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-3">
-              {produtos.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nenhum produto cadastrado no estoque
-                </p>
-              ) : (
-                produtos.map((produto) => (
-                  <div key={produto.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{produto.nome}</h4>
-                      <p className="text-sm text-muted-foreground">{produto.categoria}</p>
-                      <p className="text-sm font-medium">R$ {produto.preco.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">Estoque: {produto.estoque}</p>
-                    </div>
-                    <Button 
-                      onClick={() => adicionarItem(produto)}
-                      disabled={produto.estoque <= 0}
-                      size="sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Carrinho de Compras */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Seleção de Cliente e Produto */}
         <div className="space-y-6">
-          {/* Seleção de Cliente */}
           <Card>
             <CardHeader>
-              <CardTitle>Cliente</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Cliente
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Select onValueChange={(value) => {
@@ -350,70 +354,157 @@ export function PontoVenda() {
                   <p className="text-sm">
                     <strong>{clienteSelecionado.nome}</strong>
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Categoria: {clienteSelecionado.categoria}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Pontos: {clienteSelecionado.pontos}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary">{clienteSelecionado.categoria}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {clienteSelecionado.pontos} pontos
+                    </span>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Itens da Venda */}
           <Card>
             <CardHeader>
-              <CardTitle>Itens da Venda</CardTitle>
+              <CardTitle>Selecionar Produto</CardTitle>
             </CardHeader>
             <CardContent>
-              {itensVenda.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Nenhum item adicionado
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {itensVenda.map((item) => (
-                    <div key={item.produto_id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <h4 className="font-medium">{item.nome}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          R$ {item.preco_unitario.toFixed(2)} cada
-                        </p>
+              <Select onValueChange={(value) => {
+                const item = itensDisponiveis.find(i => i.id === value)
+                setItemSelecionado(item || null)
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um produto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {itensDisponiveis.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <div>
+                          <p className="font-medium">{item.nome}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{item.categoria}</Badge>
+                            <span className="text-sm text-muted-foreground">
+                              R$ {item.preco.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Estoque: {item.estoque}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => alterarQuantidade(item.produto_id, item.quantidade - 1)}
-                        >
-                          <Minus className="w-4 h-4" />
-                        </Button>
-                        <span className="w-12 text-center">{item.quantidade}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => alterarQuantidade(item.produto_id, item.quantidade + 1)}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removerItem(item.produto_id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                    </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              
+              {itemSelecionado && (
+                <div className="mt-3 p-3 bg-muted rounded-lg">
+                  <p className="font-medium">{itemSelecionado.nome}</p>
+                  <p className="text-sm text-muted-foreground">{itemSelecionado.categoria}</p>
+                  <p className="text-sm font-medium">R$ {itemSelecionado.preco.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Estoque: {itemSelecionado.estoque}</p>
+                  {itemSelecionado.descricao && (
+                    <p className="text-xs text-muted-foreground mt-1">{itemSelecionado.descricao}</p>
+                  )}
                 </div>
               )}
+              
+              <Button 
+                onClick={adicionarAoCarrinho}
+                disabled={!itemSelecionado || itemSelecionado.estoque <= 0}
+                className="w-full mt-3"
+              >
+                Adicionar ao Carrinho
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Carrinho de Compras */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Carrinho de Compras</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {itensCarrinho.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Nenhum item no carrinho
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {itensCarrinho.map((item) => (
+                  <div key={item.produto_id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <p className="font-medium">{item.nome}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {item.tipo === 'evento' ? 'Evento' : 'Produto'}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          R$ {item.preco_unitario.toFixed(2)} cada
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => alterarQuantidade(item.produto_id, item.quantidade - 1)}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center">{item.quantidade}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => alterarQuantidade(item.produto_id, item.quantidade + 1)}
+                      >
+                        +
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removerItem(item.produto_id)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Resumo e Finalização */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Percent className="w-5 h-5" />
+                Desconto Manual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Label htmlFor="desconto-manual">Valor do Desconto (R$)</Label>
+                <Input
+                  id="desconto-manual"
+                  type="number"
+                  min="0"
+                  max={subtotal}
+                  step="0.01"
+                  value={descontoManual}
+                  onChange={(e) => setDescontoManual(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="0,00"
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Total e Finalização */}
-          {itensVenda.length > 0 && (
+          {itensCarrinho.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Resumo da Venda</CardTitle>
@@ -421,25 +512,48 @@ export function PontoVenda() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>R$ {total.toFixed(2)}</span>
+                  <span>R$ {subtotal.toFixed(2)}</span>
                 </div>
                 
-                {desconto > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Desconto ({clienteSelecionado?.categoria}):</span>
-                    <span>- R$ {desconto.toFixed(2)}</span>
+                {descontoFidelidade > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Desconto Fidelidade ({clienteSelecionado?.categoria}):
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-green-600">
+                        -{descontoFidelidade.toFixed(0)}%
+                      </Badge>
+                      <span className="text-green-600">- R$ {descontoFidelidade.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {descontoManual > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Desconto Manual:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-blue-600">
+                        Manual
+                      </Badge>
+                      <span className="text-blue-600">- R$ {descontoManual.toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
                 
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Total:</span>
-                  <span>R$ {totalFinal.toFixed(2)}</span>
+                  <span>R$ {total.toFixed(2)}</span>
                 </div>
                 
                 <Button 
                   onClick={finalizarVenda} 
                   className="w-full"
-                  disabled={loading || !clienteSelecionado}
+                  disabled={loading || !clienteSelecionado || total < 0}
                 >
                   {loading ? "Processando..." : "Finalizar Venda"}
                 </Button>
