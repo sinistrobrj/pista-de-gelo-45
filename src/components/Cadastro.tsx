@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { UserPlus, Users, Edit, Shield, User } from "lucide-react"
+import { UserPlus, Users, Edit, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { getClientes, createCliente, updateCliente, createSystemUser } from "@/lib/supabase-utils"
 import { PhoneInput } from "./PhoneInput"
+import { CpfInput } from "./cpf-input"
 
 interface Cliente {
   id: string
@@ -25,21 +26,10 @@ interface Cliente {
   total_gasto: number
 }
 
-interface Usuario {
-  id: string
-  nome: string
-  email: string
-  tipo: "Administrador" | "Funcionario"
-  permissoes: string[]
-  ativo: boolean
-  senha_temporaria?: string
-}
-
 export function Cadastro() {
   const { toast } = useToast()
   const { profile } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
-  const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [isClienteDialogOpen, setIsClienteDialogOpen] = useState(false)
   const [isUsuarioDialogOpen, setIsUsuarioDialogOpen] = useState(false)
   const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null)
@@ -84,13 +74,27 @@ export function Cadastro() {
     }
   }
 
+  const validarCpf = (cpf: string) => {
+    const numeros = cpf.replace(/\D/g, '')
+    return numeros.length === 11
+  }
+
   const handleClienteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!clienteForm.nome) {
+    if (!clienteForm.nome || !clienteForm.cpf) {
       toast({
         title: "Erro",
-        description: "Nome é obrigatório",
+        description: "Nome e CPF são obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!validarCpf(clienteForm.cpf)) {
+      toast({
+        title: "Erro",
+        description: "CPF deve ter 11 dígitos no formato 000.000.000-00",
         variant: "destructive"
       })
       return
@@ -114,7 +118,7 @@ export function Cadastro() {
         nome: clienteForm.nome,
         email: clienteForm.email || null,
         telefone: clienteForm.telefone || null,
-        cpf: clienteForm.cpf || null,
+        cpf: clienteForm.cpf,
         categoria: 'Bronze'
       }
 
@@ -144,7 +148,7 @@ export function Cadastro() {
       console.error('Erro ao salvar cliente:', error)
       toast({
         title: "Erro",
-        description: "Erro ao salvar cliente",
+        description: "Erro ao salvar cliente. Verifique se o CPF já não está cadastrado.",
         variant: "destructive"
       })
     } finally {
@@ -202,6 +206,11 @@ export function Cadastro() {
     setIsClienteDialogOpen(true)
   }
 
+  const formatarCPF = (cpf: string) => {
+    if (!cpf) return ''
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  }
+
   const isAdmin = profile?.tipo === "Administrador"
 
   return (
@@ -256,14 +265,15 @@ export function Cadastro() {
                     </div>
 
                     <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={clienteForm.email}
-                        onChange={(e) => setClienteForm({...clienteForm, email: e.target.value})}
-                        placeholder="email@exemplo.com"
+                      <Label htmlFor="cpf">CPF *</Label>
+                      <CpfInput
+                        value={clienteForm.cpf}
+                        onChange={(value) => setClienteForm({...clienteForm, cpf: value})}
+                        placeholder="000.000.000-00"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Formato: 000.000.000-00 (obrigatório)
+                      </p>
                     </div>
 
                     <div>
@@ -279,12 +289,13 @@ export function Cadastro() {
                     </div>
 
                     <div>
-                      <Label htmlFor="cpf">CPF</Label>
+                      <Label htmlFor="email">Email</Label>
                       <Input
-                        id="cpf"
-                        value={clienteForm.cpf}
-                        onChange={(e) => setClienteForm({...clienteForm, cpf: e.target.value})}
-                        placeholder="000.000.000-00"
+                        id="email"
+                        type="email"
+                        value={clienteForm.email}
+                        onChange={(e) => setClienteForm({...clienteForm, email: e.target.value})}
+                        placeholder="email@exemplo.com"
                       />
                     </div>
 
@@ -306,8 +317,9 @@ export function Cadastro() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>CPF</TableHead>
                       <TableHead>Telefone</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Pontos</TableHead>
                       <TableHead>Ações</TableHead>
@@ -317,8 +329,9 @@ export function Cadastro() {
                     {clientes.map((cliente) => (
                       <TableRow key={cliente.id}>
                         <TableCell className="font-medium">{cliente.nome}</TableCell>
-                        <TableCell>{cliente.email || '-'}</TableCell>
+                        <TableCell>{formatarCPF(cliente.cpf || '')}</TableCell>
                         <TableCell>{cliente.telefone || '-'}</TableCell>
+                        <TableCell>{cliente.email || '-'}</TableCell>
                         <TableCell>{cliente.categoria}</TableCell>
                         <TableCell>{cliente.pontos}</TableCell>
                         <TableCell>

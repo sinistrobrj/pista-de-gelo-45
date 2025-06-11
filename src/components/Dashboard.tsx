@@ -37,7 +37,7 @@ export function Dashboard() {
       const clientes = clientesResult.data || [];
       const vendas = vendasResult.data || [];
 
-      // Calcular produtos em estoque (produtos normais + ingressos de eventos disponíveis)
+      // Calcular total de itens em estoque (produtos + ingressos de eventos)
       const produtosEstoque = produtos.reduce((total: number, produto: any) => total + produto.estoque, 0);
       const ingressosEventosDisponiveis = eventos
         .filter((evento: any) => evento.status === "Programado")
@@ -59,13 +59,20 @@ export function Dashboard() {
         })
         .reduce((total: number, venda: any) => total + (venda.total_final || 0), 0);
 
+      // Calcular vendas do dia atual
+      const hoje = new Date().toDateString();
+      const vendasHoje = vendas.filter((venda: any) => {
+        const dataVenda = new Date(venda.data).toDateString();
+        return dataVenda === hoje;
+      }).length;
+
       setEstatisticas({
-        totalVendas,
+        totalVendas: vendasHoje,
         clientesAtivos,
         produtosEstoque: totalEstoque,
         eventosProgramados,
         faturamentoMes,
-        clientesPista: 0 // Será atualizado pelo componente da pista
+        clientesPista: 0
       });
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
@@ -98,7 +105,8 @@ export function Dashboard() {
     }
   };
 
-  return <div className="p-6 space-y-6">
+  return (
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Bem-vindo ao Pista de Gelo Manager</p>
@@ -115,7 +123,7 @@ export function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">R$ {estatisticas.faturamentoMes.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
-              +{estatisticas.totalVendas} vendas realizadas
+              Receita total do mês atual
             </p>
           </CardContent>
         </Card>
@@ -173,7 +181,7 @@ export function Dashboard() {
           <CardHeader>
             <CardTitle>Vendas Recentes</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Últimas {estatisticas.totalVendas} vendas realizadas
+              Últimas vendas realizadas
             </p>
           </CardHeader>
           <CardContent>
@@ -231,7 +239,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Painel de Administração Simplificado */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -250,5 +257,6 @@ export function Dashboard() {
           </p>
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 }

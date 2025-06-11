@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client'
 
 // Função para criar usuário administrador padrão
