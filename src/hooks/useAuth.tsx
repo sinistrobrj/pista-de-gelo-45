@@ -61,9 +61,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true
 
-    // Verificar sessão existente primeiro
     const initializeAuth = async () => {
       try {
+        setLoading(true)
         const { data: { session } } = await supabase.auth.getSession()
         console.log('Sessão inicial:', session?.user?.email)
         
@@ -84,7 +84,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    // Configurar listener de mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email)
@@ -99,6 +98,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setProfile(null)
         }
+        
+        if (!loading) {
+          setLoading(false)
+        }
       }
     )
 
@@ -108,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, []) // Dependências vazias para evitar loops
 
   const signIn = async (email: string, password: string) => {
     try {

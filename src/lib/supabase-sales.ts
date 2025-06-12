@@ -40,31 +40,41 @@ export async function createVenda(venda: any, itens: any[]) {
       throw itensError
     }
 
-    // Atualizar estoque dos produtos
-    for (const item of itens) {
-      const { data: produto } = await supabase
-        .from('produtos')
-        .select('estoque')
-        .eq('id', item.produto_id)
-        .single()
+    // Usar uma única transação para atualizar estoque
+    const produtoIds = itens.map(item => item.produto_id)
+    const { data: produtosAtuais, error: produtosError } = await supabase
+      .from('produtos')
+      .select('id, estoque')
+      .in('id', produtoIds)
 
-      if (produto) {
-        await supabase
-          .from('produtos')
-          .update({ estoque: produto.estoque - item.quantidade })
-          .eq('id', item.produto_id)
-      }
+    if (produtosError) {
+      console.error('Erro ao buscar produtos:', produtosError)
+      throw produtosError
     }
 
-    // Atualizar pontos e total gasto do cliente
+    // Atualizar estoque em lote
+    const atualizacoesEstoque = itens.map(item => {
+      const produtoAtual = produtosAtuais?.find(p => p.id === item.produto_id)
+      if (produtoAtual) {
+        return supabase
+          .from('produtos')
+          .update({ estoque: produtoAtual.estoque - item.quantidade })
+          .eq('id', item.produto_id)
+      }
+      return null
+    }).filter(Boolean)
+
+    await Promise.all(atualizacoesEstoque)
+
+    // Atualizar cliente em uma única operação
     if (venda.cliente_id) {
-      const { data: cliente } = await supabase
+      const { data: cliente, error: clienteError } = await supabase
         .from('clientes')
         .select('pontos, total_gasto')
         .eq('id', venda.cliente_id)
         .single()
 
-      if (cliente) {
+      if (!clienteError && cliente) {
         const pontosGanhos = Math.floor(venda.total_final)
         await supabase
           .from('clientes')
@@ -84,19 +94,30 @@ export async function createVenda(venda: any, itens: any[]) {
   }
 }
 
+let cachedItens: any[] | null = null
+let lastFetchTime = 0
+const CACHE_DURATION = 30000 // 30 segundos
+
 export async function getItensVenda() {
   try {
+    const now = Date.now()
+    
+    // Usar cache se os dados foram buscados recentemente
+    if (cachedItens && (now - lastFetchTime) < CACHE_DURATION) {
+      return { data: cachedItens, error: null }
+    }
+
     const [produtosResult, eventosResult] = await Promise.all([
       supabase.from('produtos').select('*').order('nome'),
-      supabase.from('eventos').select('*').order('data', { ascending: true })
+      supabase.from('eventos').select('*').eq('status', 'Programado').order('data', { ascending: true })
     ])
 
     const produtos = produtosResult.data || []
     const eventos = eventosResult.data || []
 
-    // Converter eventos em "produtos" de ingresso
+    // Converter eventos em "produtos" de ingresso apenas se tiverem capacidade
     const ingressosEventos = eventos
-      .filter(evento => evento.status === 'Programado' && evento.ingressos_vendidos < evento.capacidade)
+      .filter(evento => evento.ingressos_vendidos < evento.capacidade)
       .map(evento => ({
         id: `evento_${evento.id}`,
         nome: `Ingresso - ${evento.nome}`,
@@ -115,10 +136,20 @@ export async function getItensVenda() {
     }))
 
     const todosItens = [...produtosComTipo, ...ingressosEventos]
+    
+    // Atualizar cache
+    cachedItens = todosItens
+    lastFetchTime = now
 
     return { data: todosItens, error: null }
   } catch (error) {
     console.error('Erro ao buscar itens para venda:', error)
     return { data: [], error }
   }
+}
+
+// Função para limpar cache quando necessário
+export function clearItensCache() {
+  cachedItens = null
+  lastFetchTime = 0
 }

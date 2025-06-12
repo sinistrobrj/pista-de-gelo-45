@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -47,13 +47,14 @@ export function PontoVenda() {
   const [descontoPercentual, setDescontoPercentual] = useState(0)
   const [loading, setLoading] = useState(false)
   const [regrasFidelidade, setRegrasFidelidade] = useState<any[]>([])
+  const [dadosCarregados, setDadosCarregados] = useState(false)
 
-  useEffect(() => {
-    carregarDados()
-  }, [])
-
-  const carregarDados = async () => {
+  // Memoizar a função para evitar recriações desnecessárias
+  const carregarDados = useCallback(async () => {
+    if (dadosCarregados) return
+    
     try {
+      setLoading(true)
       const [clientesResult, produtosResult, regrasResult] = await Promise.all([
         getClientes(),
         getItensVenda(),
@@ -63,37 +64,57 @@ export function PontoVenda() {
       if (!clientesResult.error) setClientes(clientesResult.data)
       if (!produtosResult.error) setProdutos(produtosResult.data)
       if (!regrasResult.error) setRegrasFidelidade(regrasResult.data)
+      
+      setDadosCarregados(true)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados. Tente novamente.",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [dadosCarregados, toast])
 
-  const adicionarAoCarrinho = (produto: Produto) => {
-    const itemExistente = carrinho.find(item => item.produto_id === produto.id)
-    
-    if (itemExistente) {
-      if (itemExistente.quantidade < produto.estoque) {
-        atualizarQuantidade(produto.id, itemExistente.quantidade + 1)
-      }
-    } else {
-      const novoItem: ItemCarrinho = {
-        produto_id: produto.id,
-        nome: produto.nome,
-        preco_unitario: produto.preco,
-        quantidade: 1,
-        subtotal: produto.preco
-      }
-      setCarrinho([...carrinho, novoItem])
-    }
-  }
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
 
-  const atualizarQuantidade = (produtoId: string, novaQuantidade: number) => {
+  const adicionarAoCarrinho = useCallback((produto: Produto) => {
+    setCarrinho(carrinho => {
+      const itemExistente = carrinho.find(item => item.produto_id === produto.id)
+      
+      if (itemExistente) {
+        if (itemExistente.quantidade < produto.estoque) {
+          return carrinho.map(item => 
+            item.produto_id === produto.id 
+              ? { ...item, quantidade: item.quantidade + 1, subtotal: item.preco_unitario * (item.quantidade + 1) }
+              : item
+          )
+        }
+        return carrinho
+      } else {
+        const novoItem: ItemCarrinho = {
+          produto_id: produto.id,
+          nome: produto.nome,
+          preco_unitario: produto.preco,
+          quantidade: 1,
+          subtotal: produto.preco
+        }
+        return [...carrinho, novoItem]
+      }
+    })
+  }, [])
+
+  const atualizarQuantidade = useCallback((produtoId: string, novaQuantidade: number) => {
     if (novaQuantidade <= 0) {
-      removerDoCarrinho(produtoId)
+      setCarrinho(carrinho => carrinho.filter(item => item.produto_id !== produtoId))
       return
     }
 
-    setCarrinho(carrinho.map(item => {
+    setCarrinho(carrinho => carrinho.map(item => {
       if (item.produto_id === produtoId) {
         return {
           ...item,
@@ -103,16 +124,15 @@ export function PontoVenda() {
       }
       return item
     }))
-  }
+  }, [])
 
-  const removerDoCarrinho = (produtoId: string) => {
-    setCarrinho(carrinho.filter(item => item.produto_id !== produtoId))
-  }
+  const removerDoCarrinho = useCallback((produtoId: string) => {
+    setCarrinho(carrinho => carrinho.filter(item => item.produto_id !== produtoId))
+  }, [])
 
-  const calcularTotais = () => {
+  const calcularTotais = useCallback(() => {
     const total = carrinho.reduce((acc, item) => acc + item.subtotal, 0)
     
-    // Obter desconto da categoria de fidelidade se houver cliente selecionado
     let descontoFidelidade = 0
     if (clienteSelecionado) {
       const cliente = clientes.find(c => c.id === clienteSelecionado)
@@ -124,13 +144,12 @@ export function PontoVenda() {
       }
     }
 
-    // SOMAR os descontos (fidelidade + manual)
     const descontoFinal = descontoFidelidade + descontoPercentual
     const descontoAplicado = total * (descontoFinal / 100)
     const totalComDesconto = total - descontoAplicado
 
     return { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade }
-  }
+  }, [carrinho, clienteSelecionado, clientes, regrasFidelidade, descontoPercentual])
 
   const finalizarVenda = async () => {
     console.log('Verificando usuário:', { profile, user })
@@ -194,8 +213,11 @@ export function PontoVenda() {
       setClienteSelecionado("")
       setDescontoPercentual(0)
       
-      // Recarregar dados para atualizar estoque
-      carregarDados()
+      // Recarregar apenas os produtos para atualizar estoque
+      const produtosResult = await getItensVenda()
+      if (!produtosResult.error) {
+        setProdutos(produtosResult.data)
+      }
     } catch (error) {
       console.error('Erro ao finalizar venda:', error)
       toast({
@@ -210,6 +232,17 @@ export function PontoVenda() {
 
   const { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade } = calcularTotais()
 
+  if (!dadosCarregados && loading) {
+    return (
+      <div className="p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dados...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
@@ -218,7 +251,6 @@ export function PontoVenda() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Seleção de Cliente */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -245,7 +277,6 @@ export function PontoVenda() {
                 </SelectContent>
               </Select>
               
-              {/* Mostrar desconto de fidelidade aplicado */}
               {clienteSelecionado && descontoFidelidade > 0 && (
                 <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
                   Desconto de fidelidade: {descontoFidelidade}%
@@ -254,7 +285,6 @@ export function PontoVenda() {
             </CardContent>
           </Card>
 
-          {/* Produtos */}
           <Card>
             <CardHeader>
               <CardTitle>Produtos Disponíveis</CardTitle>
@@ -270,7 +300,6 @@ export function PontoVenda() {
           </Card>
         </div>
 
-        {/* Resumo da Venda */}
         <div className="space-y-6">
           <CartSummary
             carrinho={carrinho}
