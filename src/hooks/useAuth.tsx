@@ -29,24 +29,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const [initialized, setInitialized] = useState(false)
 
   const loadUserProfile = async (userId: string) => {
     try {
-      console.log('Carregando perfil para usuário:', userId)
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
+        .single()
 
       if (error) {
         console.error('Erro ao carregar perfil:', error)
         return
       }
 
-      console.log('Perfil carregado:', data)
       setProfile(data)
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
@@ -61,28 +57,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true
-    let profileLoaded = false
 
     const initializeAuth = async () => {
-      if (!mounted) return
-      
       try {
-        console.log('Inicializando autenticação...')
-        
-        const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('Sessão inicial obtida:', session?.user?.email, 'Error:', error)
+        const { data: { session } } = await supabase.auth.getSession()
         
         if (!mounted) return
 
         setSession(session)
         setUser(session?.user ?? null)
         
-        if (session?.user && !profileLoaded) {
-          profileLoaded = true
+        if (session?.user) {
           await loadUserProfile(session.user.id)
         }
         
-        setInitialized(true)
         setLoading(false)
       } catch (error) {
         console.error('Erro ao verificar sessão:', error)
@@ -94,28 +82,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email)
-        
         if (!mounted) return
 
         setSession(session)
         setUser(session?.user ?? null)
         
-        if (session?.user && event === 'SIGNED_IN' && !profileLoaded) {
-          profileLoaded = true
-          setTimeout(() => {
-            if (mounted) {
-              loadUserProfile(session.user.id)
-            }
-          }, 100)
+        if (session?.user && event === 'SIGNED_IN') {
+          await loadUserProfile(session.user.id)
         } else if (event === 'SIGNED_OUT') {
           setProfile(null)
-          profileLoaded = false
         }
         
-        if (mounted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     )
 
@@ -129,14 +107,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Tentando fazer login com:', email)
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
-      console.log('Resultado do login:', { data: data?.user?.email, error })
       return { error }
     } catch (error) {
       console.error('Erro no signIn:', error)
@@ -146,20 +121,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string, nome: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             nome
           }
         }
       })
       
-      console.log('Resultado do signup:', { data: data?.user?.email, error })
       return { error }
     } catch (error) {
       console.error('Erro no signUp:', error)
@@ -168,10 +139,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signOut = async () => {
-    setLoading(true)
     await supabase.auth.signOut()
     setProfile(null)
-    setLoading(false)
   }
 
   const value = {
