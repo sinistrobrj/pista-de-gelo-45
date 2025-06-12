@@ -1,5 +1,133 @@
-
 import { supabase } from '@/integrations/supabase/client'
+
+// Cache simples para otimização
+const cache = new Map()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+
+function getCacheKey(table: string, params?: any) {
+  return `${table}_${JSON.stringify(params || {})}`
+}
+
+function setCache(key: string, data: any) {
+  cache.set(key, { data, timestamp: Date.now() })
+}
+
+function getCache(key: string) {
+  const cached = cache.get(key)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data
+  }
+  cache.delete(key)
+  return null
+}
+
+// Funções de administração
+export async function createDefaultAdmin() {
+  try {
+    console.log('Verificando se admin já existe...')
+    
+    // Verificar se já existe um usuário admin
+    const { data: existingAdmin } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', 'admin@icerink.com')
+      .maybeSingle()
+
+    if (existingAdmin) {
+      console.log('Usuário administrador já existe')
+      return { 
+        success: true, 
+        message: 'Usuário administrador já existe',
+        admin: {
+          email: 'admin@icerink.com',
+          senha: '101010'
+        }
+      }
+    }
+
+    console.log('Criando novo usuário administrador...')
+
+    // Criar usuário administrador usando auth.admin.createUser
+    const { data: user, error: userError } = await supabase.auth.admin.createUser({
+      email: 'admin@icerink.com',
+      password: '101010',
+      email_confirm: true,
+      user_metadata: {
+        nome: 'Administrador'
+      }
+    })
+
+    if (userError) {
+      console.error('Erro ao criar usuário:', userError)
+      return { success: false, error: userError }
+    }
+
+    console.log('Usuário criado, atualizando perfil...')
+
+    // Inserir/atualizar perfil
+    if (user.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.user.id,
+          nome: 'Administrador',
+          email: 'admin@icerink.com',
+          tipo: 'Administrador',
+          permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+          ativo: true
+        })
+
+      if (profileError) {
+        console.error('Erro ao atualizar perfil:', profileError)
+        return { success: false, error: profileError }
+      }
+    }
+
+    return { 
+      success: true, 
+      message: 'Administrador criado com sucesso',
+      admin: {
+        email: 'admin@icerink.com',
+        senha: '101010'
+      }
+    }
+
+  } catch (error) {
+    console.error('Erro ao criar admin:', error)
+    return { success: false, error }
+  }
+}
+
+export async function fixAdminPermissions() {
+  try {
+    console.log('Corrigindo permissões do administrador...')
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        tipo: 'Administrador',
+        permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
+        ativo: true
+      })
+      .eq('email', 'admin@icerink.com')
+      .select()
+
+    if (error) {
+      console.error('Erro ao corrigir permissões:', error)
+      return { success: false, error }
+    }
+
+    return { 
+      success: true, 
+      message: 'Permissões do administrador corrigidas com sucesso',
+      data
+    }
+
+  } catch (error) {
+    console.error('Erro ao corrigir permissões:', error)
+    return { success: false, error }
+  }
+}
 
 // Funções para clientes
 export async function getClientes() {
