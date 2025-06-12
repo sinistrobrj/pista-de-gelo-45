@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,7 +38,7 @@ interface ItemCarrinho {
 
 export function PontoVenda() {
   const { toast } = useToast()
-  const { profile, user } = useAuth()
+  const { profile, user, loading: authLoading } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [clienteSelecionado, setClienteSelecionado] = useState<string>("")
@@ -47,25 +46,38 @@ export function PontoVenda() {
   const [descontoPercentual, setDescontoPercentual] = useState(0)
   const [loading, setLoading] = useState(false)
   const [regrasFidelidade, setRegrasFidelidade] = useState<any[]>([])
-  const [dadosCarregados, setDadosCarregados] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   // Memoizar a função para evitar recriações desnecessárias
   const carregarDados = useCallback(async () => {
-    if (dadosCarregados) return
+    if (dataLoaded || authLoading) return
     
     try {
       setLoading(true)
+      console.log('Carregando dados do ponto de venda...')
+      
       const [clientesResult, produtosResult, regrasResult] = await Promise.all([
         getClientes(),
         getItensVenda(),
         getRegrasFidelidade()
       ])
 
-      if (!clientesResult.error) setClientes(clientesResult.data)
-      if (!produtosResult.error) setProdutos(produtosResult.data)
-      if (!regrasResult.error) setRegrasFidelidade(regrasResult.data)
+      if (!clientesResult.error) {
+        setClientes(clientesResult.data)
+        console.log('Clientes carregados:', clientesResult.data.length)
+      }
       
-      setDadosCarregados(true)
+      if (!produtosResult.error) {
+        setProdutos(produtosResult.data)
+        console.log('Produtos carregados:', produtosResult.data.length)
+      }
+      
+      if (!regrasResult.error) {
+        setRegrasFidelidade(regrasResult.data)
+        console.log('Regras carregadas:', regrasResult.data.length)
+      }
+      
+      setDataLoaded(true)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       toast({
@@ -76,11 +88,13 @@ export function PontoVenda() {
     } finally {
       setLoading(false)
     }
-  }, [dadosCarregados, toast])
+  }, [dataLoaded, authLoading, toast])
 
   useEffect(() => {
-    carregarDados()
-  }, [carregarDados])
+    if (!authLoading && user) {
+      carregarDados()
+    }
+  }, [authLoading, user, carregarDados])
 
   const adicionarAoCarrinho = useCallback((produto: Produto) => {
     setCarrinho(carrinho => {
@@ -152,8 +166,6 @@ export function PontoVenda() {
   }, [carrinho, clienteSelecionado, clientes, regrasFidelidade, descontoPercentual])
 
   const finalizarVenda = async () => {
-    console.log('Verificando usuário:', { profile, user })
-    
     if (!user?.id) {
       toast({
         title: "Erro",
@@ -195,8 +207,6 @@ export function PontoVenda() {
         data: new Date().toISOString()
       }
 
-      console.log('Criando venda com:', venda)
-
       const { error } = await createVenda(venda, carrinho)
 
       if (error) {
@@ -208,12 +218,10 @@ export function PontoVenda() {
         description: "Venda finalizada com sucesso!"
       })
 
-      // Limpar carrinho e seleções
       setCarrinho([])
       setClienteSelecionado("")
       setDescontoPercentual(0)
       
-      // Recarregar apenas os produtos para atualizar estoque
       const produtosResult = await getItensVenda()
       if (!produtosResult.error) {
         setProdutos(produtosResult.data)
@@ -232,9 +240,9 @@ export function PontoVenda() {
 
   const { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade } = calcularTotais()
 
-  if (!dadosCarregados && loading) {
+  if (authLoading || (!dataLoaded && loading)) {
     return (
-      <div className="p-6 flex items-center justify-center">
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Carregando dados...</p>

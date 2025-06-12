@@ -18,6 +18,7 @@ export function Dashboard() {
     faturamentoMes: 0,
     clientesPista: 0
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     carregarEstatisticas();
@@ -25,6 +26,9 @@ export function Dashboard() {
 
   const carregarEstatisticas = async () => {
     try {
+      setLoading(true);
+      console.log('Carregando estatísticas do dashboard...');
+      
       const [produtosResult, eventosResult, clientesResult, vendasResult] = await Promise.all([
         getProdutos(),
         getEventos(),
@@ -37,21 +41,22 @@ export function Dashboard() {
       const clientes = clientesResult.data || [];
       const vendas = vendasResult.data || [];
 
-      // Calcular total de itens em estoque (produtos + ingressos de eventos)
+      // Calcular estatísticas de forma otimizada
       const produtosEstoque = produtos.reduce((total: number, produto: any) => total + produto.estoque, 0);
       const ingressosEventosDisponiveis = eventos
         .filter((evento: any) => evento.status === "Programado")
         .reduce((total: number, evento: any) => total + (evento.capacidade - evento.ingressos_vendidos), 0);
       
       const totalEstoque = produtosEstoque + ingressosEventosDisponiveis;
-
       const clientesAtivos = clientes.length;
       const eventosProgramados = eventos.filter((evento: any) => evento.status === "Programado").length;
-      const totalVendas = vendas.length;
 
-      // Calcular faturamento do mês atual
-      const mesAtual = new Date().getMonth();
-      const anoAtual = new Date().getFullYear();
+      // Calcular faturamento e vendas do período atual
+      const hoje = new Date();
+      const mesAtual = hoje.getMonth();
+      const anoAtual = hoje.getFullYear();
+      const hojeDateString = hoje.toDateString();
+
       const faturamentoMes = vendas
         .filter((venda: any) => {
           const dataVenda = new Date(venda.data);
@@ -59,11 +64,9 @@ export function Dashboard() {
         })
         .reduce((total: number, venda: any) => total + (venda.total_final || 0), 0);
 
-      // Calcular vendas do dia atual
-      const hoje = new Date().toDateString();
       const vendasHoje = vendas.filter((venda: any) => {
         const dataVenda = new Date(venda.data).toDateString();
-        return dataVenda === hoje;
+        return dataVenda === hojeDateString;
       }).length;
 
       setEstatisticas({
@@ -74,8 +77,17 @@ export function Dashboard() {
         faturamentoMes,
         clientesPista: 0
       });
+
+      console.log('Estatísticas carregadas com sucesso');
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar estatísticas",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,6 +116,17 @@ export function Dashboard() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
