@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,44 +8,28 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn, Snowflake } from 'lucide-react';
 import { createDefaultAdmin } from '@/lib/supabase-utils';
-import { useNavigate } from 'react-router-dom';
+
 export function AuthPage() {
-  const {
-    signIn,
-    user
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
-  const navigate = useNavigate();
+  const { signIn } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [adminCreated, setAdminCreated] = useState(false);
   const [loginData, setLoginData] = useState({
     email: '',
     password: ''
   });
 
-  // Redirecionar se usuário já estiver logado
-  useEffect(() => {
-    if (user) {
-      console.log('Usuário logado, redirecionando...');
-      navigate('/');
-    }
-  }, [user, navigate]);
-
   // Criar administrador padrão na inicialização
   useEffect(() => {
     const initAdmin = async () => {
       try {
-        const result = await createDefaultAdmin();
-        console.log('Resultado da criação do admin:', result);
-        setAdminCreated(true);
+        await createDefaultAdmin();
       } catch (error) {
         console.error('Erro ao criar admin:', error);
       }
     };
     initAdmin();
   }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
@@ -55,11 +40,12 @@ export function AuthPage() {
       });
       return;
     }
+
     setLoading(true);
     console.log('Iniciando login...');
-    const {
-      error
-    } = await signIn(loginData.email, loginData.password);
+    
+    const { error } = await signIn(loginData.email, loginData.password);
+    
     if (error) {
       console.error('Erro no login:', error);
       toast({
@@ -73,22 +59,23 @@ export function AuthPage() {
         title: "Sucesso",
         description: "Login realizado com sucesso!"
       });
-      // O redirecionamento será feito pelo useEffect que monitora o user
     }
     setLoading(false);
   };
-  return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-ice-blue p-4">
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-ice-blue p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="relative">
               <Snowflake className="w-16 h-16 text-blue-500 animate-pulse" />
               <Snowflake className="w-8 h-8 text-ice-blue absolute -top-2 -right-2 animate-spin" style={{
-              animationDuration: '3s'
-            }} />
+                animationDuration: '3s'
+              }} />
               <Snowflake className="w-6 h-6 text-blue-300 absolute -bottom-1 -left-1 animate-pulse" style={{
-              animationDelay: '1s'
-            }} />
+                animationDelay: '1s'
+              }} />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-primary">Nome da sua Empresa Aqui</CardTitle>
@@ -97,20 +84,27 @@ export function AuthPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Usuario:
-            </Label>
-              <Input id="login-email" type="email" value={loginData.email} onChange={e => setLoginData({
-              ...loginData,
-              email: e.target.value
-            })} placeholder="seu@email.com" required />
+              <Label htmlFor="login-email">Usuario:</Label>
+              <Input 
+                id="login-email" 
+                type="email" 
+                value={loginData.email} 
+                onChange={e => setLoginData({ ...loginData, email: e.target.value })} 
+                placeholder="admin@icerink.com" 
+                required 
+              />
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="login-password">Senha:</Label>
-              <Input id="login-password" type="password" value={loginData.password} onChange={e => setLoginData({
-              ...loginData,
-              password: e.target.value
-            })} placeholder="Sua senha" required />
+              <Input 
+                id="login-password" 
+                type="password" 
+                value={loginData.password} 
+                onChange={e => setLoginData({ ...loginData, password: e.target.value })} 
+                placeholder="101010" 
+                required 
+              />
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
@@ -118,7 +112,14 @@ export function AuthPage() {
               Entrar
             </Button>
           </form>
+          
+          <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-700">
+            <strong>Login padrão:</strong><br />
+            Email: admin@icerink.com<br />
+            Senha: 101010
+          </div>
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 }

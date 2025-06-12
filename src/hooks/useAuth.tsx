@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -38,12 +39,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', userId)
         .single()
 
-      if (error) {
-        console.error('Erro ao carregar perfil:', error)
-        return
+      if (!error && data) {
+        setProfile(data)
       }
-
-      setProfile(data)
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
     }
@@ -56,13 +54,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   useEffect(() => {
-    let mounted = true
+    let isMounted = true
 
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         
-        if (!mounted) return
+        if (!isMounted) return
 
         setSession(session)
         setUser(session?.user ?? null)
@@ -71,19 +69,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await loadUserProfile(session.user.id)
         }
         
-        setLoading(false)
       } catch (error) {
         console.error('Erro ao verificar sessão:', error)
-        if (mounted) {
+      } finally {
+        if (isMounted) {
           setLoading(false)
+          setInitialized(true)
         }
       }
     }
 
+    if (!initialized) {
+      initializeAuth()
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return
+        if (!isMounted) return
 
+        console.log('Auth state changed:', event, session?.user?.email)
+        
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -97,17 +102,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     )
 
-    initializeAuth()
-
     return () => {
-      mounted = false
+      isMounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [initialized])
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -121,7 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string, nome: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {

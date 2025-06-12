@@ -21,46 +21,24 @@ import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AppContent() {
   const { user, loading } = useAuth();
-
-  console.log('ProtectedRoute - User:', user?.email, 'Loading:', loading)
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p>Carregando...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    console.log('Usuário não autenticado, redirecionando para /auth')
-    return <Navigate to="/auth" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-function AppRoutes() {
-  const { user, loading } = useAuth();
-
-  console.log('AppRoutes - User:', user?.email, 'Loading:', loading)
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
-    );
-  }
-
-  // Se não há usuário, mostrar página de auth
   if (!user) {
     return <AuthPage />;
   }
 
-  // Se há usuário, mostrar layout com rotas protegidas
   return (
     <Layout>
       <Routes>
@@ -85,18 +63,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/*" element={
-              <ProtectedRoute>
-                <AppRoutes />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
