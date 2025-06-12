@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Heart, Gift, Star, Crown, TrendingUp } from "lucide-react"
+import { Heart, Gift, Star, Crown, TrendingUp, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/useAuth"
 import { getRegrasFidelidade, getClientes } from "@/lib/supabase-utils"
 import { EditarRegraFidelidade } from "./EditarRegraFidelidade"
@@ -31,6 +31,7 @@ export function Fidelidade() {
   const [regras, setRegras] = useState<RegraFidelidade[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     carregarDados()
@@ -39,6 +40,10 @@ export function Fidelidade() {
   const carregarDados = async () => {
     try {
       setLoading(true)
+      setError(null)
+      
+      console.log('Carregando dados de fidelidade...')
+      
       const [regrasData, clientesData] = await Promise.all([
         getRegrasFidelidade(),
         getClientes()
@@ -46,17 +51,22 @@ export function Fidelidade() {
       
       if (regrasData.error) {
         console.error('Erro ao carregar regras:', regrasData.error)
+        setError('Erro ao carregar regras de fidelidade')
       } else {
-        setRegras(regrasData.data)
+        setRegras(regrasData.data || [])
       }
 
       if (clientesData.error) {
         console.error('Erro ao carregar clientes:', clientesData.error)
+        setError('Erro ao carregar clientes')
       } else {
-        setClientes(clientesData.data)
+        setClientes(clientesData.data || [])
       }
+      
+      console.log('Dados de fidelidade carregados com sucesso')
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
+      setError('Erro inesperado ao carregar dados')
     } finally {
       setLoading(false)
     }
@@ -94,7 +104,6 @@ export function Fidelidade() {
 
   const calcularProximaCategoria = (cliente: Cliente) => {
     const regrasOrdenadas = regras.sort((a, b) => a.requisito_minimo - b.requisito_minimo)
-    const regraAtual = regrasOrdenadas.find(r => r.categoria === cliente.categoria)
     const indexAtual = regrasOrdenadas.findIndex(r => r.categoria === cliente.categoria)
     
     if (indexAtual < regrasOrdenadas.length - 1) {
@@ -126,8 +135,26 @@ export function Fidelidade() {
           <Heart className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-bold">Programa de Fidelidade</h1>
         </div>
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Carregando dados...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Carregando dados de fidelidade...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Heart className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Programa de Fidelidade</h1>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-red-500 mb-4">{error}</p>
+          <Button onClick={carregarDados}>Tentar Novamente</Button>
         </div>
       </div>
     )

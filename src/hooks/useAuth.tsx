@@ -60,31 +60,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   useEffect(() => {
-    if (initialized) return
-
     let mounted = true
+    let profileLoaded = false
 
     const initializeAuth = async () => {
+      if (!mounted) return
+      
       try {
         console.log('Inicializando autenticação...')
-        setLoading(true)
         
-        const { data: { session } } = await supabase.auth.getSession()
-        console.log('Sessão inicial obtida:', session?.user?.email)
+        const { data: { session }, error } = await supabase.auth.getSession()
+        console.log('Sessão inicial obtida:', session?.user?.email, 'Error:', error)
         
         if (!mounted) return
 
         setSession(session)
         setUser(session?.user ?? null)
         
-        if (session?.user) {
+        if (session?.user && !profileLoaded) {
+          profileLoaded = true
           await loadUserProfile(session.user.id)
         }
         
         setInitialized(true)
+        setLoading(false)
       } catch (error) {
         console.error('Erro ao verificar sessão:', error)
-      } finally {
         if (mounted) {
           setLoading(false)
         }
@@ -100,8 +101,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session)
         setUser(session?.user ?? null)
         
-        if (session?.user && event === 'SIGNED_IN') {
-          // Só carrega perfil quando o usuário faz login, não a cada mudança
+        if (session?.user && event === 'SIGNED_IN' && !profileLoaded) {
+          profileLoaded = true
           setTimeout(() => {
             if (mounted) {
               loadUserProfile(session.user.id)
@@ -109,9 +110,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }, 100)
         } else if (event === 'SIGNED_OUT') {
           setProfile(null)
+          profileLoaded = false
         }
         
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     )
 
@@ -121,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [initialized])
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
