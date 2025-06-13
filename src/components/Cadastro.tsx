@@ -122,10 +122,13 @@ export function Cadastro() {
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) {
         console.error("Erro ao buscar usuários:", error);
-        toast.error("Erro ao buscar usuários.");
+        toast.error("Erro ao buscar usuários: " + error.message);
       } else {
         setUsuarios(data || []);
       }
+    } catch (err) {
+      console.error("Erro inesperado:", err);
+      toast.error("Erro inesperado ao buscar usuários");
     } finally {
       setLoading(false);
     }
@@ -185,56 +188,96 @@ export function Cadastro() {
 
   // Funções para criar novos registros
   const criarUsuario = async () => {
+    if (!nomeUsuario || !emailUsuario || !senhaUsuario) {
+      toast.error("Nome, email e senha são obrigatórios.");
+      return;
+    }
+
     if (senhaUsuario !== confirmarSenhaUsuario) {
       toast.error("Senhas não conferem.");
       return;
     }
 
+    if (senhaUsuario.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log("Criando usuário:", { email: emailUsuario, tipo: tipoUsuario, nome: nomeUsuario });
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: emailUsuario,
         password: senhaUsuario,
+        options: {
+          data: {
+            nome: nomeUsuario
+          }
+        }
       });
 
       if (authError) {
         console.error("Erro ao criar usuário na autenticação:", authError);
-        toast.error(`Erro ao criar usuário na autenticação: ${authError.message}`);
+        toast.error(`Erro ao criar usuário: ${authError.message}`);
         return;
       }
 
-      const newUser = authData.user;
+      if (!authData.user) {
+        toast.error("Erro: usuário não foi criado");
+        return;
+      }
 
-      if (newUser) {
-        const { error } = await supabase.from('profiles').insert([
+      console.log("Usuário criado na autenticação:", authData.user.id);
+
+      // Aguardar um pouco para o trigger processar
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Verificar se o perfil foi criado automaticamente
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error("Erro ao verificar perfil:", profileError);
+      }
+
+      // Se o perfil não existe, criar manualmente
+      if (!profileData) {
+        console.log("Criando perfil manualmente...");
+        const { error: insertError } = await supabase.from('profiles').insert([
           {
-            id: newUser.id,
+            id: authData.user.id,
             nome: nomeUsuario,
             email: emailUsuario,
             tipo: tipoUsuario,
             ativo: ativoUsuario,
-            permissoes: [],
           },
         ]);
 
-        if (error) {
-          console.error("Erro ao criar usuário:", error);
-          toast.error("Erro ao criar usuário.");
-          // Optionally delete the user from auth if profile creation fails
-          await supabase.auth.admin.deleteUser(newUser.id);
-        } else {
-          toast.success("Usuário criado com sucesso!");
-          setNomeUsuario("");
-          setEmailUsuario("");
-          setSenhaUsuario("");
-          setConfirmarSenhaUsuario("");
-          setAtivoUsuario(true);
-          fetchUsuarios(); // Refresh user list
+        if (insertError) {
+          console.error("Erro ao criar perfil:", insertError);
+          toast.error("Erro ao criar perfil do usuário: " + insertError.message);
+          return;
         }
+      } else {
+        console.log("Perfil criado automaticamente:", profileData);
       }
+
+      toast.success("Usuário criado com sucesso!");
+      setNomeUsuario("");
+      setEmailUsuario("");
+      setSenhaUsuario("");
+      setConfirmarSenhaUsuario("");
+      setAtivoUsuario(true);
+      setTipoUsuario("Funcionario");
+      fetchUsuarios();
+      
     } catch (err: any) {
-      console.error("Erro ao criar usuário:", err.message);
-      toast.error(`Erro ao criar usuário: ${err.message}`);
+      console.error("Erro ao criar usuário:", err);
+      toast.error(`Erro inesperado: ${err.message}`);
     } finally {
       setLoading(false);
     }
