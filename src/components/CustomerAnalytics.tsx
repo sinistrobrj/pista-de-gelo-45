@@ -1,22 +1,62 @@
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
 import { TrendingUp, Users, ShoppingCart, DollarSign } from "lucide-react"
+import { getAnalyticsData } from "@/lib/supabase-stats"
 
 export function CustomerAnalytics() {
-  // Dados vazios para exibir quando não há dados reais
-  const vendasPorMes = []
-  const categoriaClientes = []
-  const produtosMaisVendidos = []
+  const [data, setData] = useState({
+    stats: {
+      totalClientes: 0,
+      novosMesAtual: 0,
+      ticketMedio: 0,
+      taxaRetencao: 0
+    },
+    vendasPorMes: [],
+    categoriaClientes: [],
+    produtosMaisVendidos: []
+  })
+  const [loading, setLoading] = useState(true)
 
-  const stats = {
-    totalClientes: 0,
-    novosMesAtual: 0,
-    ticketMedio: 0,
-    taxaRetencao: 0
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
+
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        const result = await getAnalyticsData()
+        if (!result.error && result.data) {
+          setData(result.data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados de analytics:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    carregarDados()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Relatórios e Analytics</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="h-20 bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
 
   return (
     <div className="p-6 space-y-6">
@@ -35,7 +75,7 @@ export function CustomerAnalytics() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total de Clientes</p>
-                <p className="text-2xl font-bold">{stats.totalClientes}</p>
+                <p className="text-2xl font-bold">{data.stats.totalClientes}</p>
               </div>
             </div>
           </CardContent>
@@ -49,7 +89,7 @@ export function CustomerAnalytics() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Novos Este Mês</p>
-                <p className="text-2xl font-bold">{stats.novosMesAtual}</p>
+                <p className="text-2xl font-bold">{data.stats.novosMesAtual}</p>
               </div>
             </div>
           </CardContent>
@@ -63,7 +103,7 @@ export function CustomerAnalytics() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Ticket Médio</p>
-                <p className="text-2xl font-bold">R$ {stats.ticketMedio.toFixed(2)}</p>
+                <p className="text-2xl font-bold">R$ {data.stats.ticketMedio.toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -77,7 +117,7 @@ export function CustomerAnalytics() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Taxa de Retenção</p>
-                <p className="text-2xl font-bold">{stats.taxaRetencao.toFixed(1)}%</p>
+                <p className="text-2xl font-bold">{data.stats.taxaRetencao.toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>
@@ -90,7 +130,7 @@ export function CustomerAnalytics() {
           <CardTitle>Vendas por Mês</CardTitle>
         </CardHeader>
         <CardContent>
-          {vendasPorMes.length === 0 ? (
+          {data.vendasPorMes.length === 0 ? (
             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
               <div className="text-center">
                 <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" />
@@ -99,7 +139,7 @@ export function CustomerAnalytics() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={vendasPorMes}>
+              <BarChart data={data.vendasPorMes}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
                 <YAxis />
@@ -118,7 +158,7 @@ export function CustomerAnalytics() {
             <CardTitle>Categorias de Clientes</CardTitle>
           </CardHeader>
           <CardContent>
-            {categoriaClientes.length === 0 ? (
+            {data.categoriaClientes.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <Users className="w-16 h-16 mx-auto mb-4 opacity-20" />
@@ -129,7 +169,7 @@ export function CustomerAnalytics() {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={categoriaClientes}
+                    data={data.categoriaClientes}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -138,7 +178,7 @@ export function CustomerAnalytics() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {categoriaClientes.map((entry, index) => (
+                    {data.categoriaClientes.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -155,7 +195,7 @@ export function CustomerAnalytics() {
             <CardTitle>Produtos Mais Vendidos</CardTitle>
           </CardHeader>
           <CardContent>
-            {produtosMaisVendidos.length === 0 ? (
+            {data.produtosMaisVendidos.length === 0 ? (
               <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <ShoppingCart className="w-16 h-16 mx-auto mb-4 opacity-20" />
@@ -164,7 +204,7 @@ export function CustomerAnalytics() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={produtosMaisVendidos} layout="horizontal">
+                <BarChart data={data.produtosMaisVendidos} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
                   <YAxis dataKey="nome" type="category" width={100} />
