@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogIn, Snowflake, Clock } from 'lucide-react';
 import { createDefaultAdmin } from '@/lib/supabase-utils';
 import { iniciarSessaoVisitante } from '@/lib/supabase-visitors';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AuthPage() {
   const { signIn } = useAuth();
@@ -107,7 +108,7 @@ export function AuthPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Usuário:</Label>
+              <Label htmlFor="login-email">Email:</Label>
               <Input 
                 id="login-email" 
                 type="email" 
@@ -139,7 +140,7 @@ export function AuthPage() {
           <div className="mt-4 space-y-2">
             <div className="p-3 bg-blue-50 rounded text-sm text-blue-700">
               <strong>Tipos de usuários:</strong><br />
-              • <strong>Administrador:</strong> admin@icerink.com<br />
+              • <strong>Administrador:</strong> Acesso completo<br />
               • <strong>Visitante:</strong> nome@visitante.com<br />
               <Clock className="w-4 h-4 inline mr-1" />
               <em>Visitantes têm acesso limitado por tempo</em>

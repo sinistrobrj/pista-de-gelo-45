@@ -254,7 +254,19 @@ export interface Database {
       }
     }
     Views: {}
-    Functions: {}
+    Functions: {
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      atualizar_login_visitante: {
+        Args: {
+          user_id: string
+          minutos: number
+        }
+        Returns: void
+      }
+    }
     Enums: {}
     CompositeTypes: {}
   }

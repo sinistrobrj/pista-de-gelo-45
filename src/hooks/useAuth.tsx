@@ -3,10 +3,25 @@ import { useState, useEffect, createContext, useContext } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
 
+interface Profile {
+  id: string
+  nome: string
+  email: string
+  tipo: 'Administrador' | 'Funcionario' | 'Visitante'
+  permissoes: string[]
+  ativo: boolean
+  ultimo_login: string | null
+  tempo_acesso_minutos: number | null
+  login_expira_em: string | null
+  tempo_restante_minutos: number | null
+  created_at: string
+  updated_at: string
+}
+
 interface AuthContextType {
   user: User | null
   session: Session | null
-  profile: any | null
+  profile: Profile | null
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signUp: (email: string, password: string, nome: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
@@ -27,7 +42,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<any | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
 
