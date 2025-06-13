@@ -56,12 +56,16 @@ interface Usuario {
   id: string;
   nome: string;
   email: string;
-  tipo: 'Administrador' | 'Funcionario';
+  tipo: 'Administrador' | 'Funcionario' | 'Visitante';
   permissoes: string[];
   ativo: boolean;
   ultimo_login: string | null;
   created_at: string;
   updated_at: string;
+  tempo_acesso_minutos?: number | null;
+  login_expira_em?: string | null;
+  tempo_restante_minutos?: number | null;
+  senha_temporaria?: string | null;
 }
 
 const formatDate = (date: Date): string => {
@@ -82,7 +86,7 @@ export function Cadastro() {
   // Estados para Usuários
   const [nomeUsuario, setNomeUsuario] = useState("");
   const [emailUsuario, setEmailUsuario] = useState("");
-  const [tipoUsuario, setTipoUsuario] = useState<'Administrador' | 'Funcionario'>("Funcionario");
+  const [tipoUsuario, setTipoUsuario] = useState<'Administrador' | 'Funcionario' | 'Visitante'>("Funcionario");
   const [senhaUsuario, setSenhaUsuario] = useState("");
   const [confirmarSenhaUsuario, setConfirmarSenhaUsuario] = useState("");
   const [ativoUsuario, setAtivoUsuario] = useState(true);
@@ -457,13 +461,14 @@ export function Cadastro() {
                 </div>
                 <div>
                   <Label htmlFor="tipoUsuario">Tipo</Label>
-                  <Select value={tipoUsuario} onValueChange={(value) => setTipoUsuario(value as 'Administrador' | 'Funcionario')}>
+                  <Select value={tipoUsuario} onValueChange={(value) => setTipoUsuario(value as 'Administrador' | 'Funcionario' | 'Visitante')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Administrador">Administrador</SelectItem>
                       <SelectItem value="Funcionario">Funcionário</SelectItem>
+                      <SelectItem value="Visitante">Visitante</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
