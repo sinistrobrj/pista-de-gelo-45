@@ -213,9 +213,12 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          login_expira_em: string | null
           nome: string
           permissoes: string[] | null
           senha_temporaria: string | null
+          tempo_acesso_minutos: number | null
+          tempo_restante_minutos: number | null
           tipo: Database["public"]["Enums"]["user_role"]
           ultimo_login: string | null
           updated_at: string | null
@@ -225,9 +228,12 @@ export type Database = {
           created_at?: string | null
           email: string
           id: string
+          login_expira_em?: string | null
           nome: string
           permissoes?: string[] | null
           senha_temporaria?: string | null
+          tempo_acesso_minutos?: number | null
+          tempo_restante_minutos?: number | null
           tipo?: Database["public"]["Enums"]["user_role"]
           ultimo_login?: string | null
           updated_at?: string | null
@@ -237,9 +243,12 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
+          login_expira_em?: string | null
           nome?: string
           permissoes?: string[] | null
           senha_temporaria?: string | null
+          tempo_acesso_minutos?: number | null
+          tempo_restante_minutos?: number | null
           tipo?: Database["public"]["Enums"]["user_role"]
           ultimo_login?: string | null
           updated_at?: string | null
@@ -332,6 +341,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_login_visitante: {
+        Args: { user_id: string; minutos: number }
+        Returns: undefined
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -341,7 +354,7 @@ export type Database = {
       event_status: "Programado" | "Em andamento" | "Finalizado" | "Cancelado"
       loyalty_category: "Bronze" | "Prata" | "Ouro" | "Diamante"
       product_category: "Ingresso" | "Ingresso evento" | "Produtos"
-      user_role: "Administrador" | "Funcionario"
+      user_role: "Administrador" | "Funcionario" | "Visitante"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -460,7 +473,7 @@ export const Constants = {
       event_status: ["Programado", "Em andamento", "Finalizado", "Cancelado"],
       loyalty_category: ["Bronze", "Prata", "Ouro", "Diamante"],
       product_category: ["Ingresso", "Ingresso evento", "Produtos"],
-      user_role: ["Administrador", "Funcionario"],
+      user_role: ["Administrador", "Funcionario", "Visitante"],
     },
   },
 } as const
