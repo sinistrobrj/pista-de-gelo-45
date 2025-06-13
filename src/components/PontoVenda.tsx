@@ -5,10 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { getClientes, getRegrasFidelidade } from "@/lib/supabase-utils"
-import { createVenda, getItensVenda } from "@/lib/supabase-sales"
+import { createVenda, getItensVenda, clearItensCache } from "@/lib/supabase-sales"
 import { ProductSelector } from "./product-selector"
 import { CartSummary } from "./cart-summary"
-import { ShoppingCart, User, CreditCard } from "lucide-react"
+import { ShoppingCart, User, CreditCard, RefreshCw } from "lucide-react"
 
 interface Cliente {
   id: string
@@ -56,6 +56,9 @@ export function PontoVenda() {
       setLoading(true)
       console.log('Carregando dados do ponto de venda...')
       
+      // Limpar cache para garantir dados frescos
+      clearItensCache()
+      
       const [clientesResult, produtosResult, regrasResult] = await Promise.all([
         getClientes(),
         getItensVenda(),
@@ -70,6 +73,7 @@ export function PontoVenda() {
       if (!produtosResult.error) {
         setProdutos(produtosResult.data)
         console.log('Produtos carregados:', produtosResult.data.length)
+        console.log('Produtos detalhes:', produtosResult.data)
       }
       
       if (!regrasResult.error) {
@@ -89,6 +93,33 @@ export function PontoVenda() {
       setLoading(false)
     }
   }, [dataLoaded, authLoading, toast])
+
+  // Função para recarregar dados
+  const recarregarProdutos = useCallback(async () => {
+    setLoading(true)
+    try {
+      clearItensCache() // Limpar cache
+      const produtosResult = await getItensVenda()
+      
+      if (!produtosResult.error) {
+        setProdutos(produtosResult.data)
+        console.log('Produtos recarregados:', produtosResult.data.length)
+        toast({
+          title: "Sucesso",
+          description: "Produtos atualizados com sucesso!"
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao recarregar produtos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao recarregar produtos",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -222,6 +253,7 @@ export function PontoVenda() {
       setClienteSelecionado("")
       setDescontoPercentual(0)
       
+      // Recarregar produtos após venda
       const produtosResult = await getItensVenda()
       if (!produtosResult.error) {
         setProdutos(produtosResult.data)
@@ -253,9 +285,16 @@ export function PontoVenda() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <ShoppingCart className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-bold">Ponto de Venda</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Ponto de Venda</h1>
+        </div>
+        
+        <Button onClick={recarregarProdutos} variant="outline" disabled={loading}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar Produtos
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -295,7 +334,7 @@ export function PontoVenda() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Produtos Disponíveis</CardTitle>
+              <CardTitle>Produtos Disponíveis ({produtos.length} itens)</CardTitle>
             </CardHeader>
             <CardContent>
               <ProductSelector

@@ -20,53 +20,76 @@ export async function createVenda(venda: any, itens: any[]) {
 
     console.log('Venda criada:', vendaData)
 
-    // Criar itens da venda
-    const itensComVendaId = itens.map(item => ({
-      venda_id: vendaData.id,
-      produto_id: item.produto_id,
-      quantidade: item.quantidade,
-      preco_unitario: item.preco_unitario,
-      subtotal: item.subtotal
-    }))
+    // Processar itens para vendas de eventos e produtos
+    const itensVendaPromises = itens.map(async (item) => {
+      // Se for um ingresso de evento, atualizar a quantidade vendida
+      if (item.produto_id.startsWith('evento_')) {
+        const eventoId = item.produto_id.replace('evento_', '')
+        
+        // Buscar evento atual
+        const { data: evento, error: eventoError } = await supabase
+          .from('eventos')
+          .select('ingressos_vendidos')
+          .eq('id', eventoId)
+          .single()
 
-    console.log('Inserindo itens da venda:', itensComVendaId)
+        if (!eventoError && evento) {
+          // Atualizar ingressos vendidos
+          await supabase
+            .from('eventos')
+            .update({ 
+              ingressos_vendidos: evento.ingressos_vendidos + item.quantidade 
+            })
+            .eq('id', eventoId)
+        }
+
+        // Criar item de venda com produto_id do evento
+        return {
+          venda_id: vendaData.id,
+          produto_id: eventoId, // usar o ID real do evento
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario,
+          subtotal: item.subtotal
+        }
+      } else {
+        // Para produtos normais, atualizar estoque
+        const { data: produtoAtual, error: produtoError } = await supabase
+          .from('produtos')
+          .select('estoque')
+          .eq('id', item.produto_id)
+          .single()
+
+        if (!produtoError && produtoAtual) {
+          await supabase
+            .from('produtos')
+            .update({ estoque: produtoAtual.estoque - item.quantidade })
+            .eq('id', item.produto_id)
+        }
+
+        return {
+          venda_id: vendaData.id,
+          produto_id: item.produto_id,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario,
+          subtotal: item.subtotal
+        }
+      }
+    })
+
+    const itensProcessados = await Promise.all(itensVendaPromises)
+
+    console.log('Inserindo itens da venda:', itensProcessados)
 
     const { error: itensError } = await supabase
       .from('itens_venda')
-      .insert(itensComVendaId)
+      .insert(itensProcessados)
 
     if (itensError) {
       console.error('Erro ao inserir itens da venda:', itensError)
       throw itensError
     }
 
-    // Usar uma única transação para atualizar estoque
-    const produtoIds = itens.map(item => item.produto_id)
-    const { data: produtosAtuais, error: produtosError } = await supabase
-      .from('produtos')
-      .select('id, estoque')
-      .in('id', produtoIds)
-
-    if (produtosError) {
-      console.error('Erro ao buscar produtos:', produtosError)
-      throw produtosError
-    }
-
-    // Atualizar estoque em lote
-    const atualizacoesEstoque = itens.map(item => {
-      const produtoAtual = produtosAtuais?.find(p => p.id === item.produto_id)
-      if (produtoAtual) {
-        return supabase
-          .from('produtos')
-          .update({ estoque: produtoAtual.estoque - item.quantidade })
-          .eq('id', item.produto_id)
-      }
-      return null
-    }).filter(Boolean)
-
-    await Promise.all(atualizacoesEstoque)
-
-    // Atualizar cliente em uma única operação
+    // Atualizar cliente
     if (venda.cliente_id) {
       const { data: cliente, error: clienteError } = await supabase
         .from('clientes')
@@ -86,6 +109,9 @@ export async function createVenda(venda: any, itens: any[]) {
       }
     }
 
+    // Limpar cache após venda
+    clearItensCache()
+
     console.log('Venda finalizada com sucesso')
     return { data: vendaData, error: null }
   } catch (error) {
@@ -104,8 +130,11 @@ export async function getItensVenda() {
     
     // Usar cache se os dados foram buscados recentemente
     if (cachedItens && (now - lastFetchTime) < CACHE_DURATION) {
+      console.log('Usando cache de itens de venda')
       return { data: cachedItens, error: null }
     }
+
+    console.log('Buscando itens de venda do banco...')
 
     const [produtosResult, eventosResult] = await Promise.all([
       supabase.from('produtos').select('*').order('nome'),
@@ -114,6 +143,9 @@ export async function getItensVenda() {
 
     const produtos = produtosResult.data || []
     const eventos = eventosResult.data || []
+
+    console.log('Produtos encontrados:', produtos.length)
+    console.log('Eventos encontrados:', eventos.length)
 
     // Converter eventos em "produtos" de ingresso apenas se tiverem capacidade
     const ingressosEventos = eventos
@@ -124,10 +156,12 @@ export async function getItensVenda() {
         categoria: 'Evento',
         preco: evento.preco,
         estoque: evento.capacidade - evento.ingressos_vendidos,
-        descricao: `${evento.descricao} - ${new Date(evento.data).toLocaleDateString()} às ${evento.horario}`,
+        descricao: `${evento.descricao || ''} - ${new Date(evento.data).toLocaleDateString()} às ${evento.horario}`,
         tipo: 'evento',
         evento_id: evento.id
       }))
+
+    console.log('Ingressos de eventos processados:', ingressosEventos.length)
 
     // Adicionar tipo aos produtos normais
     const produtosComTipo = produtos.map(produto => ({
@@ -136,6 +170,8 @@ export async function getItensVenda() {
     }))
 
     const todosItens = [...produtosComTipo, ...ingressosEventos]
+    
+    console.log('Total de itens disponíveis:', todosItens.length)
     
     // Atualizar cache
     cachedItens = todosItens
@@ -150,6 +186,7 @@ export async function getItensVenda() {
 
 // Função para limpar cache quando necessário
 export function clearItensCache() {
+  console.log('Limpando cache de itens de venda')
   cachedItens = null
   lastFetchTime = 0
 }

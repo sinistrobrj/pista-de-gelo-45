@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Plus, Edit, Trash2, Users, Ticket } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { getEventos, createEvento, updateEvento, deleteEvento } from "@/lib/supabase-utils"
 
 interface Evento {
   id: string
@@ -19,7 +19,7 @@ interface Evento {
   horario: string
   capacidade: number
   preco: number
-  ingressosVendidos: number
+  ingressos_vendidos: number
   status: "Programado" | "Em andamento" | "Finalizado" | "Cancelado"
 }
 
@@ -28,6 +28,8 @@ export function Eventos() {
   const [eventos, setEventos] = useState<Evento[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editandoEvento, setEditandoEvento] = useState<Evento | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
   const [form, setForm] = useState({
     nome: "",
     descricao: "",
@@ -41,14 +43,34 @@ export function Eventos() {
     carregarEventos()
   }, [])
 
-  const carregarEventos = () => {
-    const eventosSalvos = JSON.parse(localStorage.getItem('eventos') || '[]')
-    setEventos(eventosSalvos)
-  }
+  const carregarEventos = async () => {
+    console.log('Carregando eventos...')
+    setLoadingData(true)
+    try {
+      const result = await getEventos()
+      console.log('Resultado eventos:', result)
 
-  const salvarEventos = (novosEventos: Evento[]) => {
-    localStorage.setItem('eventos', JSON.stringify(novosEventos))
-    setEventos(novosEventos)
+      if (result.error) {
+        console.error('Erro ao carregar eventos:', result.error)
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar eventos: " + result.error.message,
+          variant: "destructive"
+        })
+      } else {
+        console.log('Eventos carregados:', result.data)
+        setEventos(result.data || [])
+      }
+    } catch (error) {
+      console.error('Erro geral ao carregar eventos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar eventos do sistema",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingData(false)
+    }
   }
 
   const resetForm = () => {
@@ -85,7 +107,7 @@ export function Eventos() {
     resetForm()
   }
 
-  const salvarEvento = () => {
+  const salvarEvento = async () => {
     if (!form.nome || !form.data || !form.horario || !form.capacidade || !form.preco) {
       toast({
         title: "Erro",
@@ -95,77 +117,96 @@ export function Eventos() {
       return
     }
 
-    const novoEvento: Evento = {
-      id: editandoEvento?.id || Date.now().toString(),
-      nome: form.nome,
-      descricao: form.descricao,
-      data: form.data,
-      horario: form.horario,
-      capacidade: parseInt(form.capacidade),
-      preco: parseFloat(form.preco),
-      ingressosVendidos: editandoEvento?.ingressosVendidos || 0,
-      status: editandoEvento?.status || "Programado"
-    }
+    setLoading(true)
 
-    let novosEventos: Evento[]
-    
-    if (editandoEvento) {
-      novosEventos = eventos.map(e => e.id === editandoEvento.id ? novoEvento : e)
-      toast({
-        title: "Sucesso",
-        description: "Evento atualizado com sucesso",
-      })
-    } else {
-      novosEventos = [...eventos, novoEvento]
-      
-      // Adicionar ingresso do evento ao estoque
-      const estoque = JSON.parse(localStorage.getItem('estoque') || '[]')
-      const ingressoEvento = {
-        id: `evento_${novoEvento.id}`,
-        nome: `Ingresso - ${novoEvento.nome}`,
-        categoria: "Ingresso evento",
-        preco: novoEvento.preco,
-        estoque: novoEvento.capacidade,
-        descricao: `Ingresso para o evento ${novoEvento.nome} em ${new Date(novoEvento.data).toLocaleDateString('pt-BR')}`
+    try {
+      const dadosEvento = {
+        nome: form.nome,
+        descricao: form.descricao || null,
+        data: form.data,
+        horario: form.horario,
+        capacidade: parseInt(form.capacidade),
+        preco: parseFloat(form.preco),
+        ingressos_vendidos: editandoEvento?.ingressos_vendidos || 0,
+        status: (editandoEvento?.status || "Programado") as "Programado" | "Em andamento" | "Finalizado" | "Cancelado"
       }
+
+      console.log('Salvando evento:', dadosEvento)
+
+      if (editandoEvento) {
+        const { error } = await updateEvento(editandoEvento.id, dadosEvento)
+        if (error) throw error
+        
+        toast({
+          title: "Sucesso",
+          description: "Evento atualizado com sucesso!"
+        })
+      } else {
+        const { error } = await createEvento(dadosEvento)
+        if (error) throw error
+        
+        toast({
+          title: "Sucesso",
+          description: "Evento criado com sucesso!"
+        })
+      }
+
+      fecharDialog()
+      carregarEventos()
+    } catch (error) {
+      console.error('Erro ao salvar evento:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar evento",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const excluirEvento = async (id: string) => {
+    try {
+      console.log('Excluindo evento:', id)
       
-      localStorage.setItem('estoque', JSON.stringify([...estoque, ingressoEvento]))
-      
+      const { error } = await deleteEvento(id)
+      if (error) throw error
+
       toast({
         title: "Sucesso",
-        description: "Evento criado e ingresso adicionado ao estoque",
+        description: "Evento excluído com sucesso!",
+      })
+      
+      carregarEventos()
+    } catch (error) {
+      console.error('Erro ao excluir evento:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir evento",
+        variant: "destructive"
       })
     }
-
-    salvarEventos(novosEventos)
-    fecharDialog()
   }
 
-  const excluirEvento = (id: string) => {
-    const novosEventos = eventos.filter(e => e.id !== id)
-    salvarEventos(novosEventos)
-    
-    // Remover ingresso do estoque
-    const estoque = JSON.parse(localStorage.getItem('estoque') || '[]')
-    const novoEstoque = estoque.filter((item: any) => item.id !== `evento_${id}`)
-    localStorage.setItem('estoque', JSON.stringify(novoEstoque))
-    
-    toast({
-      title: "Sucesso",
-      description: "Evento excluído com sucesso",
-    })
-  }
+  const alterarStatus = async (id: string, novoStatus: Evento['status']) => {
+    try {
+      const { error } = await updateEvento(id, { status: novoStatus })
+      if (error) throw error
 
-  const alterarStatus = (id: string, novoStatus: Evento['status']) => {
-    const novosEventos = eventos.map(evento => 
-      evento.id === id ? { ...evento, status: novoStatus } : evento
-    )
-    salvarEventos(novosEventos)
-    
-    toast({
-      title: "Sucesso",
-      description: `Status do evento alterado para ${novoStatus}`,
-    })
+      toast({
+        title: "Sucesso",
+        description: `Status do evento alterado para ${novoStatus}`,
+      })
+      
+      carregarEventos()
+    } catch (error) {
+      console.error('Erro ao alterar status:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar status do evento",
+        variant: "destructive"
+      })
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -183,8 +224,22 @@ export function Eventos() {
     programados: eventos.filter(e => e.status === "Programado").length,
     emAndamento: eventos.filter(e => e.status === "Em andamento").length,
     finalizados: eventos.filter(e => e.status === "Finalizado").length,
-    totalIngressos: eventos.reduce((total, evento) => total + evento.ingressosVendidos, 0),
-    faturamento: eventos.reduce((total, evento) => total + (evento.ingressosVendidos * evento.preco), 0)
+    totalIngressos: eventos.reduce((total, evento) => total + evento.ingressos_vendidos, 0),
+    faturamento: eventos.reduce((total, evento) => total + (evento.ingressos_vendidos * evento.preco), 0)
+  }
+
+  if (loadingData) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <Calendar className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-bold">Gestão de Eventos</h1>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Carregando eventos...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -268,8 +323,8 @@ export function Eventos() {
               </div>
 
               <div className="md:col-span-2 flex gap-2">
-                <Button onClick={salvarEvento} className="flex-1">
-                  {editandoEvento ? "Atualizar" : "Criar Evento"}
+                <Button onClick={salvarEvento} className="flex-1" disabled={loading}>
+                  {loading ? "Salvando..." : editandoEvento ? "Atualizar" : "Criar Evento"}
                 </Button>
                 <Button variant="outline" onClick={fecharDialog}>
                   Cancelar
@@ -382,7 +437,7 @@ export function Eventos() {
                     </TableCell>
                     <TableCell>{evento.capacidade}</TableCell>
                     <TableCell>
-                      {evento.ingressosVendidos} 
+                      {evento.ingressos_vendidos} 
                       <span className="text-sm text-muted-foreground">
                         / {evento.capacidade}
                       </span>

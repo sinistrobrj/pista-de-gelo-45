@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client'
 
 // Cache simples para otimização
@@ -292,6 +291,19 @@ export async function updateEvento(id: string, updates: any) {
     return { data, error }
   } catch (error) {
     return { data: null, error }
+  }
+}
+
+export async function deleteEvento(id: string) {
+  try {
+    const { error } = await supabase
+      .from('eventos')
+      .delete()
+      .eq('id', id)
+    
+    return { error }
+  } catch (error) {
+    return { error }
   }
 }
 
