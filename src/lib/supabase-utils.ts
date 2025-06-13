@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client'
 
 // Cache simples para otimização
@@ -47,13 +48,14 @@ export async function createDefaultAdmin() {
 
     console.log('Criando novo usuário administrador...')
 
-    // Criar usuário administrador usando auth.admin.createUser
-    const { data: user, error: userError } = await supabase.auth.admin.createUser({
+    // Criar usuário administrador
+    const { data: user, error: userError } = await supabase.auth.signUp({
       email: 'admin@icerink.com',
       password: '101010',
-      email_confirm: true,
-      user_metadata: {
-        nome: 'Administrador'
+      options: {
+        data: {
+          nome: 'Administrador'
+        }
       }
     })
 
@@ -62,26 +64,7 @@ export async function createDefaultAdmin() {
       return { success: false, error: userError }
     }
 
-    console.log('Usuário criado, atualizando perfil...')
-
-    // Inserir/atualizar perfil
-    if (user.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.user.id,
-          nome: 'Administrador',
-          email: 'admin@icerink.com',
-          tipo: 'Administrador',
-          permissoes: ['vendas', 'estoque', 'relatorios', 'clientes', 'eventos', 'pista', 'admin', 'usuarios'],
-          ativo: true
-        })
-
-      if (profileError) {
-        console.error('Erro ao atualizar perfil:', profileError)
-        return { success: false, error: profileError }
-      }
-    }
+    console.log('Usuário criado, aguardando confirmação...')
 
     return { 
       success: true, 
@@ -125,6 +108,47 @@ export async function fixAdminPermissions() {
 
   } catch (error) {
     console.error('Erro ao corrigir permissões:', error)
+    return { success: false, error }
+  }
+}
+
+// Função para criar novo usuário/administrador
+export async function createUser(userData: {
+  nome: string
+  email: string
+  senha: string
+  tipo: 'Administrador' | 'Funcionario'
+  permissoes: string[]
+}) {
+  try {
+    console.log('Criando novo usuário:', userData.email)
+
+    // Criar usuário na autenticação
+    const { data: user, error: userError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.senha,
+      options: {
+        data: {
+          nome: userData.nome
+        }
+      }
+    })
+
+    if (userError) {
+      console.error('Erro ao criar usuário:', userError)
+      return { success: false, error: userError }
+    }
+
+    console.log('Usuário criado com sucesso')
+
+    return { 
+      success: true, 
+      message: 'Usuário criado com sucesso',
+      user
+    }
+
+  } catch (error) {
+    console.error('Erro ao criar usuário:', error)
     return { success: false, error }
   }
 }

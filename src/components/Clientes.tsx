@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Users, Search, Heart, TrendingUp } from "lucide-react"
 import { getClientes, getVendas } from "@/lib/supabase-utils"
+import { NovoClienteDialog } from "./NovoClienteDialog"
 
 interface Cliente {
   id: string
@@ -225,6 +225,7 @@ export function Clientes() {
                   className="pl-10 w-64"
                 />
               </div>
+              <NovoClienteDialog onClienteAdicionado={carregarDados} />
               <Button onClick={carregarDados}>
                 Atualizar
               </Button>
