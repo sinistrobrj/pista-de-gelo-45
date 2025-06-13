@@ -16,13 +16,31 @@ import { Cadastro } from "./components/Cadastro";
 import { Clientes } from "./components/Clientes";
 import { Eventos } from "./components/Eventos";
 import { Pista } from "./components/Pista";
+import { VisitantesManager } from "./components/VisitantesManager";
+import { useVisitanteTimer } from "@/hooks/useVisitanteTimer";
 import NotFound from "./pages/NotFound";
-import { Loader2 } from "lucide-react";
+import { Loader2, Clock } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+function VisitanteTimer() {
+  const { tempoRestante } = useVisitanteTimer();
+  const { profile } = useAuth();
+  
+  if (profile?.tipo !== 'Visitante' || !tempoRestante) {
+    return null;
+  }
+
+  return (
+    <div className="fixed top-4 right-4 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg z-50 flex items-center space-x-2">
+      <Clock className="w-4 h-4" />
+      <span className="font-medium">{tempoRestante} min restantes</span>
+    </div>
+  );
+}
+
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
 
   if (loading) {
     return (
@@ -39,22 +57,29 @@ function AppContent() {
     return <AuthPage />;
   }
 
+  const isAdmin = profile?.tipo === 'Administrador';
+  const isVisitante = profile?.tipo === 'Visitante';
+
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/ponto-venda" element={<PontoVenda />} />
-        <Route path="/estoque" element={<Estoque />} />
-        <Route path="/fidelidade" element={<Fidelidade />} />
-        <Route path="/cadastro" element={<Cadastro />} />
-        <Route path="/eventos" element={<Eventos />} />
-        <Route path="/clientes" element={<Clientes />} />
-        <Route path="/pista" element={<Pista />} />
-        <Route path="/analytics" element={<CustomerAnalytics />} />
-        <Route path="/auth" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Layout>
+    <>
+      <VisitanteTimer />
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/ponto-venda" element={<PontoVenda />} />
+          <Route path="/estoque" element={<Estoque />} />
+          <Route path="/fidelidade" element={<Fidelidade />} />
+          <Route path="/cadastro" element={<Cadastro />} />
+          <Route path="/eventos" element={<Eventos />} />
+          <Route path="/clientes" element={<Clientes />} />
+          <Route path="/pista" element={<Pista />} />
+          <Route path="/analytics" element={<CustomerAnalytics />} />
+          {isAdmin && <Route path="/visitantes" element={<VisitantesManager />} />}
+          <Route path="/auth" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Layout>
+    </>
   );
 }
 

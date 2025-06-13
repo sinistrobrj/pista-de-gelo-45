@@ -41,6 +41,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!error && data) {
         setProfile(data)
+        
+        // Se for visitante, verificar se o tempo expirou
+        if (data.tipo === 'Visitante' && data.login_expira_em) {
+          const expiraEm = new Date(data.login_expira_em)
+          const agora = new Date()
+          
+          if (expiraEm <= agora) {
+            console.log('Tempo do visitante expirado, fazendo logout...')
+            await signOut()
+            return
+          }
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)

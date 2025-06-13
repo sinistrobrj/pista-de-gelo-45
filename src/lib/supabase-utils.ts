@@ -112,12 +112,12 @@ export async function fixAdminPermissions() {
   }
 }
 
-// Função para criar novo usuário/administrador
+// Função para criar novo usuário/administrador/visitante
 export async function createUser(userData: {
   nome: string
   email: string
   senha: string
-  tipo: 'Administrador' | 'Funcionario'
+  tipo: 'Administrador' | 'Funcionario' | 'Visitante'
   permissoes: string[]
 }) {
   try {

@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogIn, Snowflake } from 'lucide-react';
+import { Loader2, LogIn, Snowflake, Clock } from 'lucide-react';
 import { createDefaultAdmin } from '@/lib/supabase-utils';
+import { iniciarSessaoVisitante } from '@/lib/supabase-visitors';
 
 export function AuthPage() {
   const { signIn } = useAuth();
@@ -55,6 +56,28 @@ export function AuthPage() {
       });
     } else {
       console.log('Login bem-sucedido');
+      
+      // Verificar se é visitante e iniciar sessão
+      if (loginData.email.includes('@visitante.com')) {
+        // Aguardar um pouco para garantir que o perfil foi carregado
+        setTimeout(async () => {
+          try {
+            // Buscar o usuário atual para pegar o ID
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await iniciarSessaoVisitante(user.id);
+              toast({
+                title: "Bem-vindo!",
+                description: "Sessão de visitante iniciada. Você tem 15 minutos de acesso.",
+                duration: 5000
+              });
+            }
+          } catch (error) {
+            console.error('Erro ao iniciar sessão de visitante:', error);
+          }
+        }, 1000);
+      }
+      
       toast({
         title: "Sucesso",
         description: "Login realizado com sucesso!"
@@ -84,13 +107,13 @@ export function AuthPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Usuario:</Label>
+              <Label htmlFor="login-email">Usuário:</Label>
               <Input 
                 id="login-email" 
                 type="email" 
                 value={loginData.email} 
                 onChange={e => setLoginData({ ...loginData, email: e.target.value })} 
-                placeholder="admin@icerink.com" 
+                placeholder="Digite seu email" 
                 required 
               />
             </div>
@@ -102,7 +125,7 @@ export function AuthPage() {
                 type="password" 
                 value={loginData.password} 
                 onChange={e => setLoginData({ ...loginData, password: e.target.value })} 
-                placeholder="101010" 
+                placeholder="Digite sua senha" 
                 required 
               />
             </div>
@@ -113,10 +136,14 @@ export function AuthPage() {
             </Button>
           </form>
           
-          <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-700">
-            <strong>Login padrão:</strong><br />
-            Email: admin@icerink.com<br />
-            Senha: 101010
+          <div className="mt-4 space-y-2">
+            <div className="p-3 bg-blue-50 rounded text-sm text-blue-700">
+              <strong>Tipos de usuários:</strong><br />
+              • <strong>Administrador:</strong> admin@icerink.com<br />
+              • <strong>Visitante:</strong> nome@visitante.com<br />
+              <Clock className="w-4 h-4 inline mr-1" />
+              <em>Visitantes têm acesso limitado por tempo</em>
+            </div>
           </div>
         </CardContent>
       </Card>

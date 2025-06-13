@@ -1,4 +1,3 @@
-
 export interface Database {
   public: {
     Tables: {
@@ -7,10 +6,13 @@ export interface Database {
           id: string
           nome: string
           email: string
-          tipo: 'Administrador' | 'Funcionario'
+          tipo: 'Administrador' | 'Funcionario' | 'Visitante'
           permissoes: string[]
           ativo: boolean
           ultimo_login: string | null
+          tempo_acesso_minutos: number | null
+          login_expira_em: string | null
+          tempo_restante_minutos: number | null
           created_at: string
           updated_at: string
         }
@@ -18,10 +20,13 @@ export interface Database {
           id: string
           nome: string
           email: string
-          tipo?: 'Administrador' | 'Funcionario'
+          tipo?: 'Administrador' | 'Funcionario' | 'Visitante'
           permissoes?: string[]
           ativo?: boolean
           ultimo_login?: string | null
+          tempo_acesso_minutos?: number | null
+          login_expira_em?: string | null
+          tempo_restante_minutos?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -29,10 +34,13 @@ export interface Database {
           id?: string
           nome?: string
           email?: string
-          tipo?: 'Administrador' | 'Funcionario'
+          tipo?: 'Administrador' | 'Funcionario' | 'Visitante'
           permissoes?: string[]
           ativo?: boolean
           ultimo_login?: string | null
+          tempo_acesso_minutos?: number | null
+          login_expira_em?: string | null
+          tempo_restante_minutos?: number | null
           created_at?: string
           updated_at?: string
         }
