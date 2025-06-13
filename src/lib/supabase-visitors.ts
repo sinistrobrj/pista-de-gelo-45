@@ -57,14 +57,36 @@ export async function createVisitante(visitanteData: {
 
 export async function iniciarSessaoVisitante(userId: string, minutos: number = 15) {
   try {
-    const { error } = await supabase.rpc('atualizar_login_visitante', {
-      user_id: userId,
-      minutos: minutos
-    })
+    // Verificar se a função RPC existe, senão usar UPDATE direto
+    try {
+      const { error } = await supabase.rpc('atualizar_login_visitante', {
+        user_id: userId,
+        minutos: minutos
+      })
 
-    if (error) {
-      console.error('Erro ao iniciar sessão do visitante:', error)
-      return { success: false, error }
+      if (error) {
+        throw error
+      }
+    } catch (rpcError) {
+      // Se a função RPC não existir, usar UPDATE direto
+      console.log('Função RPC não encontrada, usando UPDATE direto')
+      const expiraEm = new Date()
+      expiraEm.setMinutes(expiraEm.getMinutes() + minutos)
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          login_expira_em: expiraEm.toISOString(),
+          tempo_acesso_minutos: minutos,
+          tempo_restante_minutos: minutos,
+          ultimo_login: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .eq('tipo', 'Visitante')
+
+      if (updateError) {
+        throw updateError
+      }
     }
 
     return { success: true }
@@ -88,16 +110,35 @@ export async function adicionarTempoVisitante(userId: string, minutosAdicionais:
       return { success: false, error: fetchError }
     }
 
-    const novoTempo = (profile.tempo_acesso_minutos || 0) + minutosAdicionais
+    const novoTempo = (profile?.tempo_acesso_minutos || 0) + minutosAdicionais
     
-    const { error } = await supabase.rpc('atualizar_login_visitante', {
-      user_id: userId,
-      minutos: novoTempo
-    })
+    try {
+      const { error } = await supabase.rpc('atualizar_login_visitante', {
+        user_id: userId,
+        minutos: novoTempo
+      })
 
-    if (error) {
-      console.error('Erro ao adicionar tempo ao visitante:', error)
-      return { success: false, error }
+      if (error) {
+        throw error
+      }
+    } catch (rpcError) {
+      // Se a função RPC não existir, usar UPDATE direto
+      const expiraEm = new Date()
+      expiraEm.setMinutes(expiraEm.getMinutes() + novoTempo)
+      
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          login_expira_em: expiraEm.toISOString(),
+          tempo_acesso_minutos: novoTempo,
+          tempo_restante_minutos: novoTempo
+        })
+        .eq('id', userId)
+        .eq('tipo', 'Visitante')
+
+      if (updateError) {
+        throw updateError
+      }
     }
 
     return { success: true }

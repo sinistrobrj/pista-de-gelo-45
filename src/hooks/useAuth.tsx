@@ -11,9 +11,9 @@ interface Profile {
   permissoes: string[]
   ativo: boolean
   ultimo_login: string | null
-  tempo_acesso_minutos: number | null
-  login_expira_em: string | null
-  tempo_restante_minutos: number | null
+  tempo_acesso_minutos?: number | null
+  login_expira_em?: string | null
+  tempo_restante_minutos?: number | null
   created_at: string
   updated_at: string
 }
@@ -55,11 +55,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single()
 
       if (!error && data) {
-        setProfile(data)
+        // Garantir que os campos opcionais existam
+        const profileData: Profile = {
+          ...data,
+          tempo_acesso_minutos: data.tempo_acesso_minutos || null,
+          login_expira_em: data.login_expira_em || null,
+          tempo_restante_minutos: data.tempo_restante_minutos || null,
+        }
+        
+        setProfile(profileData)
         
         // Se for visitante, verificar se o tempo expirou
-        if (data.tipo === 'Visitante' && data.login_expira_em) {
-          const expiraEm = new Date(data.login_expira_em)
+        if (profileData.tipo === 'Visitante' && profileData.login_expira_em) {
+          const expiraEm = new Date(profileData.login_expira_em)
           const agora = new Date()
           
           if (expiraEm <= agora) {

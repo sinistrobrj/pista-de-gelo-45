@@ -27,7 +27,7 @@ export function useVisitanteTimer() {
           return
         }
 
-        if (data.login_expira_em) {
+        if (data && data.login_expira_em) {
           const expiraEm = new Date(data.login_expira_em)
           const agora = new Date()
           const minutosRestantes = Math.floor((expiraEm.getTime() - agora.getTime()) / (1000 * 60))
