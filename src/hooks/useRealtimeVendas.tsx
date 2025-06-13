@@ -7,7 +7,7 @@ export function useRealtimeVendas(onUpdate?: () => void) {
 
   useEffect(() => {
     const channel = supabase
-      .channel('vendas-realtime')
+      .channel(`vendas-realtime-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -37,10 +37,12 @@ export function useRealtimeVendas(onUpdate?: () => void) {
         }
       )
       .subscribe((status) => {
+        console.log('Status da conexão realtime vendas:', status)
         setIsConnected(status === 'SUBSCRIBED')
       })
 
     return () => {
+      console.log('Removendo canal realtime vendas')
       supabase.removeChannel(channel)
     }
   }, [onUpdate])

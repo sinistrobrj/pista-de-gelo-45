@@ -31,7 +31,7 @@ export async function createVenda(venda: any, itens: any[]) {
           .from('eventos')
           .select('ingressos_vendidos')
           .eq('id', eventoId)
-          .single()
+          .maybeSingle()
 
         if (!eventoError && evento) {
           // Atualizar ingressos vendidos
@@ -57,7 +57,7 @@ export async function createVenda(venda: any, itens: any[]) {
           .from('produtos')
           .select('estoque')
           .eq('id', item.produto_id)
-          .single()
+          .maybeSingle()
 
         if (!produtoError && produtoAtual) {
           await supabase
@@ -95,7 +95,7 @@ export async function createVenda(venda: any, itens: any[]) {
         .from('clientes')
         .select('pontos, total_gasto')
         .eq('id', venda.cliente_id)
-        .single()
+        .maybeSingle()
 
       if (!clienteError && cliente) {
         const pontosGanhos = Math.floor(venda.total_final)

@@ -7,7 +7,7 @@ export function useSupabaseRealtime(table: string, onUpdate?: () => void) {
 
   useEffect(() => {
     const channel = supabase
-      .channel(`schema-db-changes-${table}`)
+      .channel(`schema-db-changes-${table}-${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -23,10 +23,12 @@ export function useSupabaseRealtime(table: string, onUpdate?: () => void) {
         }
       )
       .subscribe((status) => {
+        console.log(`Status da conexão realtime para ${table}:`, status)
         setIsConnected(status === 'SUBSCRIBED')
       })
 
     return () => {
+      console.log(`Removendo canal realtime para ${table}`)
       supabase.removeChannel(channel)
     }
   }, [table, onUpdate])
