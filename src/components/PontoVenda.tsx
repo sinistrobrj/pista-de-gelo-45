@@ -46,86 +46,77 @@ export function PontoVenda() {
   const [descontoPercentual, setDescontoPercentual] = useState(0)
   const [loading, setLoading] = useState(false)
   const [regrasFidelidade, setRegrasFidelidade] = useState<any[]>([])
-  const [dataLoaded, setDataLoaded] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
-  // Memoizar a função para evitar recriações desnecessárias
   const carregarDados = useCallback(async () => {
-    if (dataLoaded || authLoading) return
+    if (initialized) return
+    
+    console.log('=== INICIANDO CARREGAMENTO DOS DADOS ===')
+    console.log('Auth loading:', authLoading)
+    console.log('User:', user?.id)
+    console.log('Profile:', profile?.nome)
     
     try {
       setLoading(true)
-      console.log('Carregando dados do ponto de venda...')
-      
-      // Limpar cache para garantir dados frescos
+      console.log('Limpando cache...')
       clearItensCache()
       
-      const [clientesResult, produtosResult, regrasResult] = await Promise.all([
-        getClientes(),
-        getItensVenda(),
-        getRegrasFidelidade()
-      ])
+      console.log('Carregando clientes...')
+      const clientesResult = await getClientes()
+      console.log('Resultado clientes:', clientesResult)
+      
+      console.log('Carregando produtos...')
+      const produtosResult = await getItensVenda()
+      console.log('Resultado produtos:', produtosResult)
+      
+      console.log('Carregando regras...')
+      const regrasResult = await getRegrasFidelidade()
+      console.log('Resultado regras:', regrasResult)
 
       if (!clientesResult.error) {
-        setClientes(clientesResult.data)
-        console.log('Clientes carregados:', clientesResult.data.length)
+        setClientes(clientesResult.data || [])
+        console.log('Clientes definidos:', clientesResult.data?.length || 0)
+      } else {
+        console.error('Erro ao carregar clientes:', clientesResult.error)
       }
       
       if (!produtosResult.error) {
-        setProdutos(produtosResult.data)
-        console.log('Produtos carregados:', produtosResult.data.length)
-        console.log('Produtos detalhes:', produtosResult.data)
+        setProdutos(produtosResult.data || [])
+        console.log('Produtos definidos:', produtosResult.data?.length || 0)
+      } else {
+        console.error('Erro ao carregar produtos:', produtosResult.error)
       }
       
       if (!regrasResult.error) {
-        setRegrasFidelidade(regrasResult.data)
-        console.log('Regras carregadas:', regrasResult.data.length)
+        setRegrasFidelidade(regrasResult.data || [])
+        console.log('Regras definidas:', regrasResult.data?.length || 0)
+      } else {
+        console.error('Erro ao carregar regras:', regrasResult.error)
       }
       
-      setDataLoaded(true)
+      setInitialized(true)
+      console.log('=== CARREGAMENTO CONCLUÍDO ===')
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      console.error('=== ERRO CRÍTICO NO CARREGAMENTO ===', error)
       toast({
         title: "Erro",
-        description: "Erro ao carregar dados. Tente novamente.",
+        description: "Erro ao carregar dados. Tente recarregar a página.",
         variant: "destructive"
       })
     } finally {
       setLoading(false)
     }
-  }, [dataLoaded, authLoading, toast])
-
-  // Função para recarregar dados
-  const recarregarProdutos = useCallback(async () => {
-    setLoading(true)
-    try {
-      clearItensCache() // Limpar cache
-      const produtosResult = await getItensVenda()
-      
-      if (!produtosResult.error) {
-        setProdutos(produtosResult.data)
-        console.log('Produtos recarregados:', produtosResult.data.length)
-        toast({
-          title: "Sucesso",
-          description: "Produtos atualizados com sucesso!"
-        })
-      }
-    } catch (error) {
-      console.error('Erro ao recarregar produtos:', error)
-      toast({
-        title: "Erro",
-        description: "Erro ao recarregar produtos",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [toast])
+  }, [initialized, authLoading, user, profile, toast])
 
   useEffect(() => {
-    if (!authLoading && user) {
+    console.log('=== EFFECT DISPARADO ===')
+    console.log('authLoading:', authLoading, 'user:', !!user, 'initialized:', initialized)
+    
+    if (!authLoading && user && !initialized) {
+      console.log('Condições atendidas, iniciando carregamento...')
       carregarDados()
     }
-  }, [authLoading, user, carregarDados])
+  }, [authLoading, user, initialized, carregarDados])
 
   const adicionarAoCarrinho = useCallback((produto: Produto) => {
     setCarrinho(carrinho => {
@@ -196,6 +187,31 @@ export function PontoVenda() {
     return { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade }
   }, [carrinho, clienteSelecionado, clientes, regrasFidelidade, descontoPercentual])
 
+  const recarregarProdutos = useCallback(async () => {
+    setLoading(true)
+    try {
+      clearItensCache()
+      const produtosResult = await getItensVenda()
+      
+      if (!produtosResult.error) {
+        setProdutos(produtosResult.data || [])
+        toast({
+          title: "Sucesso",
+          description: "Produtos atualizados com sucesso!"
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao recarregar produtos:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao recarregar produtos",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
   const finalizarVenda = async () => {
     if (!user?.id) {
       toast({
@@ -253,10 +269,9 @@ export function PontoVenda() {
       setClienteSelecionado("")
       setDescontoPercentual(0)
       
-      // Recarregar produtos após venda
       const produtosResult = await getItensVenda()
       if (!produtosResult.error) {
-        setProdutos(produtosResult.data)
+        setProdutos(produtosResult.data || [])
       }
     } catch (error) {
       console.error('Erro ao finalizar venda:', error)
@@ -270,18 +285,50 @@ export function PontoVenda() {
     }
   }
 
-  const { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade } = calcularTotais()
+  console.log('=== RENDER STATE ===')
+  console.log('authLoading:', authLoading)
+  console.log('loading:', loading)
+  console.log('initialized:', initialized)
+  console.log('user exists:', !!user)
+  console.log('clientes length:', clientes.length)
+  console.log('produtos length:', produtos.length)
 
-  if (authLoading || (!dataLoaded && loading)) {
+  if (authLoading) {
+    console.log('Mostrando loading por authLoading')
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Carregando dados...</p>
+          <p>Carregando autenticação...</p>
         </div>
       </div>
     )
   }
+
+  if (!user) {
+    console.log('Usuário não logado')
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p>Usuário não autenticado. Faça login novamente.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!initialized) {
+    console.log('Não inicializado ainda')
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando dados do sistema...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { total, descontoAplicado, totalComDesconto, descontoFinal, descontoFidelidade } = calcularTotais()
 
   return (
     <div className="p-6 space-y-6">
